@@ -124,6 +124,117 @@ class Neo4jStore:
 
         self._safe_run(query, **params)
 
+    def add_relation(self, relation: GraphRelation) -> None:
+        """Alias para add_relationship para compatibilidade com testes."""
+        self.add_relationship(relation)
+
+    def delete_relation(self, source_id: str, target_id: str, relation_type) -> None:
+        """Remove uma relação específica entre dois nós."""
+        query = (
+            f"MATCH (a {{id: $from_id}})-[r:{relation_type}]->(b {{id: $to_id}}) "
+            "DELETE r"
+        )
+        
+        params = {
+            "from_id": source_id,
+            "to_id": target_id
+        }
+        
+        self._safe_run(query, **params)
+
+    def search_nodes_by_content(self, search_term: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Busca nós por conteúdo."""
+        query = (
+            "MATCH (n) "
+            "WHERE n.content CONTAINS $search_term OR n.name CONTAINS $search_term "
+            "RETURN n "
+            f"LIMIT {limit}"
+        )
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query, search_term=search_term)
+            return [dict(record["n"]) for record in result]
+
+    def get_document_context(self, document_id: str) -> List[Dict[str, Any]]:
+        """Recupera o contexto de um documento."""
+        query = (
+            "MATCH (doc {id: $doc_id})-[:CONTAINS]->(chunk) "
+            "RETURN chunk"
+        )
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query, doc_id=document_id)
+            return [dict(record["chunk"]) for record in result]
+
+    def delete_node(self, node_id: str) -> None:
+        """Remove um nó e todas suas relações."""
+        query = (
+            "MATCH (n {id: $node_id}) "
+            "DETACH DELETE n"
+        )
+        
+        self._safe_run(query, node_id=node_id)
+
+    def clear_all(self) -> None:
+        """Remove todos os nós e relações do banco."""
+        query = "MATCH (n) DETACH DELETE n"
+        self._safe_run(query)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Retorna estatísticas do banco."""
+        with self.driver.session(database=self.database) as session:
+            # Contar nós
+            nodes_result = session.run("MATCH (n) RETURN count(n) as total_nodes")
+            total_nodes = nodes_result.single()["total_nodes"]
+            
+            # Contar relações
+            rels_result = session.run("MATCH ()-[r]->() RETURN count(r) as total_relations")
+            total_relations = rels_result.single()["total_relations"]
+            
+            return {
+                 "total_nodes": total_nodes,
+                 "total_relations": total_relations
+             }
+
+    def find_related_nodes(self, node_id: str, relation_type, depth: int = 1) -> List[Dict[str, Any]]:
+        """Encontra nós relacionados a um nó específico."""
+        query = (
+            f"MATCH (n {{id: $node_id}})-[:{relation_type}*1..{depth}]-(related) "
+            "RETURN DISTINCT related"
+        )
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query, node_id=node_id)
+            return [dict(record["related"]) for record in result]
+
+    def get_node(self, node_id: str) -> Optional[Dict[str, Any]]:
+        """Recupera um nó específico pelo ID."""
+        query = "MATCH (n {id: $node_id}) RETURN n"
+        
+        with self.driver.session(database=self.database) as session:
+            result = session.run(query, node_id=node_id)
+            record = result.single()
+             return dict(record["n"]) if record else None
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+        return False
+
+    def batch_add_nodes(self, nodes: List) -> None:
+        """Adiciona múltiplos nós em lote."""
+        for node in nodes:
+            self.add_node(node)
+
+    def begin_transaction(self):
+        """Inicia uma transação explícita."""
+        session = self.driver.session(database=self.database)
+        return session.begin_transaction()
+
     # ---------------------------------------------------------------------
     # Consultas para contexto e análise
     # ---------------------------------------------------------------------
@@ -317,4 +428,4 @@ class Neo4jStore:
 
         for rel_type, batch in by_type.items():
             q = query.replace("__RELTYPE__", rel_type)
-            self._safe_run(q, rels=batch) 
+            self._safe_run(q, rels=batch)

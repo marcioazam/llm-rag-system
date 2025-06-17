@@ -14,8 +14,13 @@ class TestNeo4jStore:
         with patch('src.graphdb.neo4j_store.GraphDatabase') as mock_graphdb:
             mock_driver = Mock()
             mock_session = Mock()
-            mock_driver.session.return_value.__enter__.return_value = mock_session
-            mock_driver.session.return_value.__exit__.return_value = None
+            
+            # Configurar o context manager corretamente
+            mock_session_context = Mock()
+            mock_session_context.__enter__ = Mock(return_value=mock_session)
+            mock_session_context.__exit__ = Mock(return_value=None)
+            mock_driver.session.return_value = mock_session_context
+            
             mock_graphdb.driver.return_value = mock_driver
             
             yield {
@@ -96,8 +101,8 @@ class TestNeo4jStore:
     def test_add_relation(self, mock_driver, store):
         """Testa adição de relação."""
         relation = GraphRelation(
-            from_id="node_1",
-            to_id="node_2",
+            source_id="node_1",
+            target_id="node_2",
             type=RelationType.CONTAINS,
             properties={"weight": 0.8}
         )
@@ -358,8 +363,8 @@ class TestNeo4jStore:
         """Testa tratamento correto dos tipos de relação."""
         for relation_type in RelationType:
             relation = GraphRelation(
-                from_id="node_1",
-                to_id="node_2",
+                source_id="node_1",
+                target_id="node_2",
                 type=relation_type,
                 properties={}
             )
