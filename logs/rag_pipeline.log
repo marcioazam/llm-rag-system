@@ -1,0 +1,242 @@
+2025-06-13 05:57:12,082 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 05:57:12,082 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 05:57:14,370 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 05:57:14,377 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 05:57:14,622 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 05:57:14,627 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 05:57:20,048 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 05:57:20,089 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 05:57:22,017 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 05:57:22,030 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 05:57:22,249 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 05:57:22,255 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 05:57:32,869 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 05:57:32,880 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 05:57:32,908 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 05:57:32,916 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:01:36,673 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:01:38,744 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:01:38,909 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:01:41,626 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:01:41,663 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:02:41,150 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/documento1.pdf
+2025-06-13 06:02:41,150 - src.rag_pipeline - ERROR - Error processing /home/marcio/llm-rag-system/documento1.pdf: File not found: /home/marcio/llm-rag-system/documento1.pdf
+2025-06-13 06:02:41,150 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/documento2.txt
+2025-06-13 06:02:41,150 - src.rag_pipeline - ERROR - Error processing /home/marcio/llm-rag-system/documento2.txt: File not found: /home/marcio/llm-rag-system/documento2.txt
+2025-06-13 06:03:30,318 - src.rag_pipeline - INFO - Retrieving context for query: Qual é o conceito de inteligência artificial?
+2025-06-13 06:03:31,468 - src.rag_pipeline - INFO - Generating response with LLM
+2025-06-13 06:03:44,411 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:04:56,806 - src.rag_pipeline - INFO - Processing document: /caminho/completo/para/documento1.pdf
+2025-06-13 06:04:56,806 - src.rag_pipeline - ERROR - Error processing /caminho/completo/para/documento1.pdf: File not found: /caminho/completo/para/documento1.pdf
+2025-06-13 06:04:56,807 - src.rag_pipeline - INFO - Processing document: /caminho/completo/para/documento2.txt
+2025-06-13 06:04:56,807 - src.rag_pipeline - ERROR - Error processing /caminho/completo/para/documento2.txt: File not found: /caminho/completo/para/documento2.txt
+2025-06-13 06:05:11,086 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/../documentos/documento1.pdf
+2025-06-13 06:05:11,086 - src.rag_pipeline - ERROR - Error processing /home/marcio/llm-rag-system/../documentos/documento1.pdf: File not found: /home/marcio/llm-rag-system/../documentos/documento1.pdf
+2025-06-13 06:05:11,086 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/../documentos/documento2.txt
+2025-06-13 06:05:11,086 - src.rag_pipeline - ERROR - Error processing /home/marcio/llm-rag-system/../documentos/documento2.txt: File not found: /home/marcio/llm-rag-system/../documentos/documento2.txt
+2025-06-13 06:06:07,648 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/../documento2.md
+2025-06-13 06:06:07,648 - src.rag_pipeline - ERROR - Error processing /home/marcio/llm-rag-system/../documento2.md: File not found: /home/marcio/llm-rag-system/../documento2.md
+2025-06-13 06:06:22,840 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/documento2.md
+2025-06-13 06:06:22,873 - src.rag_pipeline - INFO - Added 0 chunks from /home/marcio/llm-rag-system/documento2.md
+2025-06-13 06:06:44,014 - src.rag_pipeline - INFO - Retrieving context for query: Qual é o conceito de inteligência artificial?
+2025-06-13 06:06:44,032 - src.rag_pipeline - INFO - Generating response with LLM
+2025-06-13 06:06:49,899 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:07:06,737 - src.rag_pipeline - INFO - Retrieving context for query: Oque e RAG?
+2025-06-13 06:07:06,752 - src.rag_pipeline - INFO - Generating response with LLM
+2025-06-13 06:07:10,893 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:10:52,370 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/data/raw/rag_introduction.txt
+2025-06-13 06:10:52,790 - src.rag_pipeline - INFO - Added 6 chunks from /home/marcio/llm-rag-system/data/raw/rag_introduction.txt
+2025-06-13 06:10:52,790 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/data/raw/llm_basics.txt
+2025-06-13 06:10:52,916 - src.rag_pipeline - INFO - Added 2 chunks from /home/marcio/llm-rag-system/data/raw/llm_basics.txt
+2025-06-13 06:10:52,917 - src.rag_pipeline - INFO - Processing document: /home/marcio/llm-rag-system/data/raw/embeddings_explained.txt
+2025-06-13 06:10:53,115 - src.rag_pipeline - INFO - Added 4 chunks from /home/marcio/llm-rag-system/data/raw/embeddings_explained.txt
+2025-06-13 06:11:15,323 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 06:11:15,344 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 06:11:15,442 - src.rag_pipeline - INFO - Generating response with LLM
+2025-06-13 06:11:33,337 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:14:16,133 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:14:18,219 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:14:18,385 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:14:21,839 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:14:21,876 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:21:38,022 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:21:39,892 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:21:40,052 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:21:42,422 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:21:42,459 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:22:32,600 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:22:34,985 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:22:35,152 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:22:37,376 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:22:37,422 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:22:49,129 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:22:51,049 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:22:51,211 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:22:53,788 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:22:53,824 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:23:29,050 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:23:30,876 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:23:31,025 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:23:33,339 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:23:33,376 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:27:46,338 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:27:48,608 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:27:48,776 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:27:51,705 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:27:51,742 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:30:11,560 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:30:13,606 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:30:13,773 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:30:16,593 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:30:16,630 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:30:32,241 - src.rag_pipeline - INFO - Retrieving context for query: Qual é a capital do Brasil?
+2025-06-13 06:30:33,346 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 06:30:33,349 - src.rag_pipeline - INFO - No relevant documents found, using LLM knowledge
+2025-06-13 06:30:33,349 - src.rag_pipeline - INFO - Generating response with LLM (mode: llm_only)
+2025-06-13 06:31:41,811 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:46:45,049 - src.rag_pipeline - INFO - Retrieving context for query: Qual é a capital do Brasil?
+2025-06-13 06:46:45,070 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 06:46:45,072 - src.rag_pipeline - INFO - No relevant documents found, using LLM knowledge
+2025-06-13 06:46:45,072 - src.rag_pipeline - INFO - Generating response with LLM (mode: llm_only)
+2025-06-13 06:47:16,420 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:47:32,923 - src.rag_pipeline - INFO - Retrieving context for query: Oque e RAG?
+2025-06-13 06:47:32,935 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 06:47:32,937 - src.rag_pipeline - INFO - No relevant documents found, using LLM knowledge
+2025-06-13 06:47:32,937 - src.rag_pipeline - INFO - Generating response with LLM (mode: llm_only)
+2025-06-13 06:49:21,162 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:49:41,336 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:49:43,269 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:49:43,449 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:49:45,933 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:49:45,968 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 06:50:08,914 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 06:50:10,033 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 06:50:10,133 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 06:51:24,260 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 06:56:27,822 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 06:56:30,363 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 06:56:30,520 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 06:56:32,912 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 06:56:32,950 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 07:05:38,827 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 07:05:42,951 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 07:05:43,118 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 07:05:45,649 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 07:05:45,688 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 07:06:56,015 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 07:06:58,517 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 07:06:58,616 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 07:06:58,618 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 404 Not Found"
+2025-06-13 07:07:46,092 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 07:07:48,180 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 07:07:48,350 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 07:07:50,731 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 07:07:50,767 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 07:08:14,658 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 07:08:15,807 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 07:08:15,907 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 07:08:15,910 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 404 Not Found"
+2025-06-13 07:10:59,706 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 07:11:01,678 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 07:11:01,851 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 07:11:04,350 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 07:11:04,387 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 07:11:27,930 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 07:11:29,056 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 07:11:29,156 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 07:11:29,158 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 404 Not Found"
+2025-06-13 07:16:25,714 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 07:16:27,834 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 07:16:28,013 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 07:16:30,333 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 07:16:30,370 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 07:16:33,692 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 07:16:34,803 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 07:16:34,902 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 07:17:29,517 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 07:20:21,592 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 07:20:21,612 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 07:20:21,646 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 07:20:57,460 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 07:23:09,104 - src.rag_pipeline - INFO - Retrieving context for query: O que é RAG?
+2025-06-13 07:23:09,123 - chromadb.segment.impl.vector.local_persistent_hnsw - WARNING - Number of requested results 15 is greater than number of elements in index 12, updating n_results = 12
+2025-06-13 07:23:09,156 - src.rag_pipeline - INFO - Generating response with LLM (mode: rag_with_context)
+2025-06-13 07:24:08,459 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+2025-06-13 07:37:16,994 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2025-06-13 07:37:19,619 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cuda
+2025-06-13 07:37:19,795 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 07:37:22,862 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 07:37:22,900 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully
+2025-06-13 19:21:17,123 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 19:21:20,448 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 19:21:20,451 - httpx - INFO - HTTP Request: GET http://0.0.0.0:11434/api/tags "HTTP/1.1 200 OK"
+2025-06-13 19:21:20,451 - src.models.model_router - INFO - Modelos disponíveis: {'code', 'general', 'mistral', 'sql', 'fast'}
+2025-06-13 19:21:20,451 - src.rag_pipeline - INFO - Usando roteamento avançado multi-modelo
+2025-06-13 19:21:20,484 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully (routing: advanced)
+2025-06-13 19:21:20,497 - uvicorn.error - INFO - Started server process [555725]
+2025-06-13 19:21:20,498 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-13 19:21:20,498 - uvicorn.error - INFO - Application startup complete.
+2025-06-13 19:21:47,661 - uvicorn.error - INFO - Shutting down
+2025-06-13 19:21:47,763 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-13 19:21:47,764 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-13 19:21:47,764 - uvicorn.error - INFO - Finished server process [555725]
+2025-06-13 19:21:52,647 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 19:21:55,392 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 19:21:55,395 - httpx - INFO - HTTP Request: GET http://0.0.0.0:11434/api/tags "HTTP/1.1 200 OK"
+2025-06-13 19:21:55,395 - src.models.model_router - INFO - Modelos disponíveis: {'fast', 'code', 'sql', 'general', 'mistral'}
+2025-06-13 19:21:55,395 - src.rag_pipeline - INFO - Usando roteamento avançado multi-modelo
+2025-06-13 19:21:55,426 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully (routing: advanced)
+2025-06-13 19:21:55,439 - uvicorn.error - INFO - Started server process [556612]
+2025-06-13 19:21:55,439 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-13 19:21:55,439 - uvicorn.error - INFO - Application startup complete.
+2025-06-13 19:22:40,467 - uvicorn.error - INFO - Shutting down
+2025-06-13 19:22:40,568 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-13 19:22:40,569 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-13 19:22:40,569 - uvicorn.error - INFO - Finished server process [556612]
+2025-06-13 19:22:49,598 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 19:22:52,914 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 19:22:52,916 - httpx - INFO - HTTP Request: GET http://0.0.0.0:11434/api/tags "HTTP/1.1 200 OK"
+2025-06-13 19:22:52,916 - src.models.model_router - INFO - Modelos disponíveis: {'mistral', 'sql', 'general', 'code', 'fast'}
+2025-06-13 19:22:52,917 - src.rag_pipeline - INFO - Usando roteamento avançado multi-modelo
+2025-06-13 19:22:52,949 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully (routing: advanced)
+2025-06-13 19:22:52,962 - uvicorn.error - INFO - Started server process [557960]
+2025-06-13 19:22:52,962 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-13 19:22:52,962 - uvicorn.error - INFO - Application startup complete.
+2025-06-13 19:23:41,413 - uvicorn.error - INFO - Shutting down
+2025-06-13 19:23:41,515 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-13 19:23:41,516 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-13 19:23:41,517 - uvicorn.error - INFO - Finished server process [557960]
+2025-06-13 19:28:47,684 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 19:28:50,698 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 19:28:50,701 - httpx - INFO - HTTP Request: GET http://0.0.0.0:11434/api/tags "HTTP/1.1 200 OK"
+2025-06-13 19:28:50,701 - src.models.model_router - INFO - Modelos disponíveis: {'fast', 'general', 'sql', 'code', 'mistral'}
+2025-06-13 19:28:50,701 - src.rag_pipeline - INFO - Usando roteamento avançado multi-modelo
+2025-06-13 19:28:50,733 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully (routing: advanced)
+2025-06-13 19:28:50,747 - uvicorn.error - INFO - Started server process [566665]
+2025-06-13 19:28:50,747 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-13 19:28:50,747 - uvicorn.error - INFO - Application startup complete.
+2025-06-13 19:29:22,751 - uvicorn.error - INFO - Shutting down
+2025-06-13 19:29:22,852 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-13 19:29:22,852 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-13 19:29:22,853 - uvicorn.error - INFO - Finished server process [566665]
+2025-06-13 19:29:28,701 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 19:29:31,648 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda
+2025-06-13 19:29:31,651 - httpx - INFO - HTTP Request: GET http://0.0.0.0:11434/api/tags "HTTP/1.1 200 OK"
+2025-06-13 19:29:31,652 - src.models.model_router - INFO - Modelos disponíveis: {'fast', 'sql', 'general', 'code', 'mistral'}
+2025-06-13 19:29:31,652 - src.rag_pipeline - INFO - Usando roteamento avançado multi-modelo
+2025-06-13 19:29:31,684 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully (routing: advanced)
+2025-06-13 19:29:31,696 - uvicorn.error - INFO - Started server process [567729]
+2025-06-13 19:29:31,697 - uvicorn.error - INFO - Waiting for application startup.
+2025-06-13 19:29:31,697 - uvicorn.error - INFO - Application startup complete.
+2025-06-13 19:57:07,878 - uvicorn.error - INFO - Shutting down
+2025-06-13 19:57:07,979 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-06-13 19:57:07,980 - uvicorn.error - INFO - Application shutdown complete.
+2025-06-13 19:57:07,980 - uvicorn.error - INFO - Finished server process [567729]
+2025-06-13 21:39:42,813 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: BAAI/bge-small-en-v1.5
+2025-06-13 21:39:45,595 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-06-13 21:39:47,662 - src.vectordb.chroma_store - INFO - Loaded existing collection: documents
+2025-06-13 21:39:48,903 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cuda:0
+2025-06-13 21:39:49,371 - httpx - INFO - HTTP Request: GET http://0.0.0.0:11434/api/tags "HTTP/1.1 200 OK"
+2025-06-13 21:39:49,373 - src.models.model_router - ERROR - Erro ao verificar modelos: 'name'
+2025-06-13 21:39:49,373 - src.rag_pipeline - INFO - Usando roteamento avançado multi-modelo
+2025-06-13 21:39:49,431 - src.rag_pipeline - INFO - RAG Pipeline initialized successfully (routing: advanced)

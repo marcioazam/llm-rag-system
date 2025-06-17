@@ -1,0 +1,1 @@
+FastAPI é excelente para construir APIs robustas em Python. Principais características: - Type hints e validação automática com Pydantic - Documentação automática (Swagger OpenAPI) - Async await nativo - Alta performance - Fácil de testar

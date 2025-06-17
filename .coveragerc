@@ -1,0 +1,23 @@
+[run]
+branch = True
+source = src
+omit =
+    */__init__.py
+    */tests/*
+    */venv/*
+    src/cli/*
+    src/api/*
+    src/client/*
+    src/devtools/*
+    src/embeddings/hierarchical_embedding_service.py
+    src/retrieval/query_enhancer.py
+    src/retrieval/reranker.py
+    src/utils/*
+    scripts/*
+    test_*.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:  # alias pattern will be recognized by coverage
+fail_under = 40 

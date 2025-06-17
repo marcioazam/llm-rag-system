@@ -1,0 +1,102 @@
+[
+  {
+    "id": "plan_and_solve",
+    "title": "Plan-and-Solve Programming Prompt",
+    "file": "Plan-and-Solve.md",
+    "domain": ["geral"],
+    "scope": "full_solution",
+    "estimated_tokens": 350,
+    "tags": ["analysis", "implementation"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "performance_optimization_protocol",
+    "title": "Performance Optimization Protocol Prompt",
+    "file": "Performance-Optimization-Protocol.md",
+    "domain": ["performance"],
+    "scope": "deep_dive",
+    "estimated_tokens": 250,
+    "tags": ["performance", "profiling"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "risk_assessment_framework",
+    "title": "Risk Assessment Framework Prompt",
+    "file": "Risk-Assessment-Framework.md",
+    "domain": ["architecture", "governance"],
+    "scope": "deep_dive",
+    "estimated_tokens": 300,
+    "tags": ["risk", "architecture"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "architecture_decision_records",
+    "title": "Architecture Decision Records (ADR) Prompt",
+    "file": "Architecture-Decision-Records.md",
+    "domain": ["architecture"],
+    "scope": "documentation",
+    "estimated_tokens": 200,
+    "tags": ["architecture", "documentation"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "testing_standards",
+    "title": "Testing Standards Prompt",
+    "file": "Testing-Standards.md",
+    "domain": ["testing"],
+    "scope": "guideline",
+    "estimated_tokens": 260,
+    "tags": ["testing", "quality"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "quick_fix_bug",
+    "title": "Quick-Fix-Bug Prompt",
+    "file": "Quick-Fix-Bug.md",
+    "domain": ["bugfix"],
+    "scope": "quick",
+    "estimated_tokens": 120,
+    "tags": ["bugfix", "patch"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "data_viz_insight",
+    "title": "Data-Viz-Insight Prompt",
+    "file": "Data-Viz-Insight.md",
+    "domain": ["data", "visualization"],
+    "scope": "quick",
+    "estimated_tokens": 180,
+    "tags": ["data", "visualization"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "code_review_checklist",
+    "title": "Code Review Checklist Prompt",
+    "file": "Code-Review-Checklist.md",
+    "domain": ["review"],
+    "scope": "guideline",
+    "estimated_tokens": 220,
+    "tags": ["review", "quality"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "test_case_generator",
+    "title": "Test Case Generator Prompt",
+    "file": "Test-Case-Generator.md",
+    "domain": ["testing"],
+    "scope": "full_solution",
+    "estimated_tokens": 320,
+    "tags": ["testing", "coverage"],
+    "version": "2024-06-15"
+  },
+  {
+    "id": "ci_pipeline_troubleshooter",
+    "title": "CI Pipeline Troubleshooter Prompt",
+    "file": "CI-Pipeline-Troubleshooter.md",
+    "domain": ["ci"],
+    "scope": "quick",
+    "estimated_tokens": 150,
+    "tags": ["ci", "devops"],
+    "version": "2024-06-15"
+  }
+] 

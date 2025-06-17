@@ -1,0 +1,1 @@
+Boas práticas de segurança para APIs: - Use HTTPS sempre - Implemente rate limiting - Valide todas as entradas - Use tokens JWT para autenticação - Implemente CORS corretamente - Mantenha dependências atualizadas

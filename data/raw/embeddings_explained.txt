@@ -1,0 +1,23 @@
+Embeddings são representações numéricas densas de dados, especialmente texto, que capturam significado semântico em espaços vetoriais.
+
+O que são embeddings:
+Embeddings transformam palavras, frases ou documentos em vetores de números reais. Textos com significados similares têm vetores próximos no espaço vetorial, permitindo cálculos matemáticos de similaridade.
+
+Como funcionam:
+1. Tokenização: O texto é dividido em tokens (palavras ou subpalavras)
+2. Encoding: Cada token é convertido em um vetor numérico
+3. Contextualização: Modelos modernos consideram o contexto ao gerar embeddings
+4. Agregação: Para textos longos, os embeddings de tokens são combinados
+
+Modelos de embedding populares:
+- BERT e variantes (como BGE): Excelentes para compreensão semântica
+- Sentence-BERT: Otimizado para embeddings de sentenças
+- OpenAI Embeddings: Modelos comerciais de alta qualidade
+- E5: Modelos eficientes da Microsoft
+
+Uso em RAG:
+No contexto de RAG, embeddings são essenciais para:
+- Indexar documentos no banco vetorial
+- Encontrar documentos relevantes para uma query
+- Medir similaridade semântica entre textos
+- Agrupar documentos relacionados

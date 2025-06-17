@@ -1,0 +1,30 @@
+RAG (Retrieval-Augmented Generation) é uma técnica avançada em inteligência artificial que combina a capacidade de recuperação de informações com a geração de texto usando modelos de linguagem.
+
+Como funciona o RAG:
+O RAG funciona em duas etapas principais. Primeiro, quando uma pergunta é feita, o sistema busca documentos relevantes em uma base de conhecimento usando técnicas de similaridade semântica. Depois, esses documentos recuperados são fornecidos como contexto para um modelo de linguagem gerar uma resposta precisa e fundamentada.
+
+Componentes principais do RAG:
+1. Sistema de Embeddings: Converte textos em representações numéricas (vetores) que capturam o significado semântico.
+2. Banco de Dados Vetorial: Armazena os embeddings dos documentos para busca eficiente por similaridade.
+3. Sistema de Recuperação: Encontra os documentos mais relevantes para uma consulta específica.
+4. Modelo de Linguagem: Gera respostas baseadas no contexto recuperado.
+
+Vantagens do RAG:
+- Respostas mais precisas e atualizadas, pois usa informações de documentos específicos
+- Reduz alucinações do modelo, já que as respostas são baseadas em fontes reais
+- Permite atualizar o conhecimento sem retreinar o modelo
+- Fornece rastreabilidade, mostrando de onde vieram as informações
+
+Aplicações do RAG:
+RAG é amplamente usado em chatbots empresariais, sistemas de suporte ao cliente, assistentes de pesquisa, e qualquer aplicação onde é importante ter respostas precisas baseadas em documentação específica.
+
+Chunking no RAG:
+O chunking é o processo de dividir documentos grandes em pedaços menores e gerenciáveis. Isso é importante porque:
+- Modelos têm limites de contexto
+- Chunks menores permitem recuperação mais precisa
+- Melhora a relevância das respostas
+
+Tipos de Chunking:
+1. Chunking por tamanho fixo: Divide o texto em pedaços de tamanho uniforme
+2. Chunking semântico: Agrupa texto com base em similaridade de significado
+3. Chunking recursivo: Usa múltiplos separadores para dividir o texto de forma hierárquica

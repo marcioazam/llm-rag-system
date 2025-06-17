@@ -1,0 +1,170 @@
+# RAG System Configuration - Multi-Model Support
+# Version: 2.0
+
+# LLM Configuration - Multi-Model Setup
+llm:
+  # Default model (backward compatibility)
+  model: "llama3.1:8b-instruct-q4_K_M"
+  base_url: "http://localhost:11434"
+  temperature: 0.7
+  max_tokens: 2048
+  
+  # Multi-model configuration
+  routing_mode: "advanced"  # simple, advanced, disabled
+  models:
+    general:
+      name: "llama3.1:8b-instruct-q4_K_M"
+      temperature: 0.7
+      max_tokens: 2048
+      tasks: ["general_explanation", "documentation"]
+      priority: 1
+      
+    code:
+      name: "codellama:7b-instruct"
+      temperature: 0.3  # Lower for more precise code
+      max_tokens: 4096
+      tasks: ["code_generation", "debugging"]
+      priority: 1
+      
+    mistral:
+      name: "mistral:7b-instruct-q4_0"
+      temperature: 0.8
+      max_tokens: 2048
+      tasks: ["architecture_design", "system_analysis"]
+      priority: 2
+      optional: true
+      
+    sql:
+      name: "sqlcoder:7b-q4_0"
+      temperature: 0.1  # Very low for SQL precision
+      max_tokens: 1024
+      tasks: ["sql_query"]
+      priority: 1
+      optional: true
+      
+    fast:
+      name: "phi:2.7b"
+      temperature: 0.5
+      max_tokens: 512
+      tasks: ["quick_snippet", "validation"]
+      priority: 3
+      optional: true
+
+# Performance Settings (optimized for i5 8gen, 20GB RAM)
+performance:
+  max_concurrent_models: 2  # Max models loaded simultaneously
+  cpu_threads: 6  # i5 8gen = 4 cores/8 threads, use 6
+  use_gpu: false  # MX150 has limited VRAM
+  model_timeout: 300  # seconds
+  cache_models: true
+  model_cache_ttl: 3600  # seconds to keep model in memory
+
+# Embedding Configuration
+embeddings:
+  model_name: "BAAI/bge-small-en-v1.5"
+  device: "cpu"  # Changed to CPU due to MX150 limitations
+  batch_size: 32
+  cache_embeddings: true
+  normalize_embeddings: true
+
+# Vector Database Configuration
+vectordb:
+  type: "chromadb"
+  persist_directory: "./data/indexes/chroma"
+  collection_name: "documents"
+  # New settings for multi-model
+  metadata_fields:
+    - "source"
+    - "doc_type"
+    - "language"
+    - "complexity"
+
+# Chunking Configuration
+chunking:
+  method: "semantic"  # semantic, recursive, fixed
+  chunk_size: 512
+  chunk_overlap: 50
+  min_chunk_size: 100
+  max_chunk_size: 1000
+  # New: adaptive chunking based on content type
+  adaptive_chunking:
+    code: 
+      chunk_size: 1024
+      chunk_overlap: 100
+    documentation:
+      chunk_size: 512
+      chunk_overlap: 50
+    sql:
+      chunk_size: 256
+      chunk_overlap: 25
+
+# Retrieval Configuration
+retrieval:
+  top_k: 5
+  similarity_threshold: 0.7
+  rerank: true
+  rerank_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  # New: context-aware retrieval
+  context_aware:
+    enabled: true
+    boost_recent: true  # Boost recently added documents
+    boost_factor: 1.2
+
+# RAG Configuration
+rag:
+  fallback_to_llm: true
+  min_relevance_score: 0.5
+  hybrid_mode: true
+  # New multi-model settings
+  multi_model:
+    enabled: true
+    task_detection:
+      enabled: true
+      confidence_threshold: 0.7
+    model_selection:
+      strategy: "best_available"  # best_available, fastest, most_accurate
+      fallback_chain: ["general", "code", "fast"]
+    response_fusion:
+      enabled: true
+      method: "sequential"  # sequential, parallel, hierarchical
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/rag_system.log"
+  max_file_size: "10MB"
+  backup_count: 3
+  # Model-specific logging
+  model_logging:
+    log_prompts: false  # Set true for debugging
+    log_responses: false
+    log_performance: true
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: true
+  workers: 1  # Keep at 1 for model consistency
+  cors_origins: ["*"]
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+
+# System Health Monitoring
+monitoring:
+  enabled: true
+  check_interval: 60  # seconds
+  alerts:
+    memory_threshold: 85  # percentage
+    cpu_threshold: 90
+    model_load_time_threshold: 30  # seconds
+
+# Development/Debug Settings
+debug:
+  verbose: false
+  show_model_selection: true
+  show_retrieval_scores: false
+  show_chunk_details: false
+  benchmark_mode: false
