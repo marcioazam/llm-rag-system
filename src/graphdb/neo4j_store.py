@@ -103,6 +103,26 @@ class Neo4jStore:
 
         self._safe_run(query, **element)
 
+    def add_node(self, node) -> None:
+        """Adiciona um nó genérico ao grafo."""
+        # Extrair informações do nó
+        node_id = node.id
+        node_type = node.type.value if hasattr(node.type, 'value') else str(node.type)
+        properties = getattr(node, 'properties', {}) or {}
+        
+        query = (
+            f"MERGE (n:{node_type} {{id: $id}}) "
+            "SET n += $properties "
+            "SET n.updated_at = timestamp()"
+        )
+        
+        params = {
+            "id": node_id,
+            "properties": properties
+        }
+        
+        self._safe_run(query, **params)
+
     # ---------------------------------------------------------------------
     # Operações de relacionamento
     # ---------------------------------------------------------------------
@@ -185,16 +205,18 @@ class Neo4jStore:
         with self.driver.session(database=self.database) as session:
             # Contar nós
             nodes_result = session.run("MATCH (n) RETURN count(n) as total_nodes")
-            total_nodes = nodes_result.single()["total_nodes"]
+            nodes_record = nodes_result.single()
+            total_nodes = nodes_record["total_nodes"] if nodes_record else 0
             
             # Contar relações
             rels_result = session.run("MATCH ()-[r]->() RETURN count(r) as total_relations")
-            total_relations = rels_result.single()["total_relations"]
+            rels_record = rels_result.single()
+            total_relations = rels_record["total_relations"] if rels_record else 0
             
             return {
-                 "total_nodes": total_nodes,
-                 "total_relations": total_relations
-             }
+                "total_nodes": total_nodes,
+                "total_relations": total_relations
+            }
 
     def find_related_nodes(self, node_id: str, relation_type, depth: int = 1) -> List[Dict[str, Any]]:
         """Encontra nós relacionados a um nó específico."""
@@ -214,7 +236,7 @@ class Neo4jStore:
         with self.driver.session(database=self.database) as session:
             result = session.run(query, node_id=node_id)
             record = result.single()
-             return dict(record["n"]) if record else None
+            return dict(record["n"]) if record else None
 
     def __enter__(self):
         """Context manager entry."""
