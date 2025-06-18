@@ -1,0 +1,330 @@
+# Configuração de Provedores LLM via API
+# Define responsabilidades específicas e configurações para cada provedor
+
+# ==========================================
+# CONFIGURAÇÃO DE PROVEDORES LLM
+# ==========================================
+providers:
+  openai:
+    api_key: "${OPENAI_API_KEY}"  # Defina no .env
+    base_url: "https://api.openai.com/v1"
+    organization: "${OPENAI_ORG_ID}"  # Opcional
+    timeout: 60
+    max_retries: 3
+    models:
+      gpt4o:
+        name: "gpt-4o"
+        max_tokens: 4096
+        temperature: 0.7
+        responsibilities: 
+          - "primary_reasoning"
+          - "complex_analysis"
+          - "architecture_design"
+          - "code_review"
+        context_window: 128000
+        cost_per_1k_tokens: 0.005
+        priority: 1
+      gpt4o_mini:
+        name: "gpt-4o-mini"
+        max_tokens: 16384
+        temperature: 0.3
+        responsibilities:
+          - "code_generation"
+          - "debugging"
+          - "unit_tests"
+          - "refactoring"
+        context_window: 128000
+        cost_per_1k_tokens: 0.00015
+        priority: 2
+      gpt35_turbo:
+        name: "gpt-3.5-turbo"
+        max_tokens: 4096
+        temperature: 0.5
+        responsibilities:
+          - "quick_queries"
+          - "summarization"
+          - "translation"
+          - "simple_explanations"
+        context_window: 16385
+        cost_per_1k_tokens: 0.001
+        priority: 3
+
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"  # Defina no .env
+    base_url: "https://api.anthropic.com"
+    timeout: 60
+    max_retries: 3
+    models:
+      claude_3_5_sonnet:
+        name: "claude-3-5-sonnet-20241022"
+        max_tokens: 8192
+        temperature: 0.7
+        responsibilities:
+          - "document_analysis"
+          - "content_creation"
+          - "research_synthesis"
+          - "technical_writing"
+        context_window: 200000
+        cost_per_1k_tokens: 0.003
+        priority: 1
+      claude_3_haiku:
+        name: "claude-3-haiku-20240307"
+        max_tokens: 4096
+        temperature: 0.5
+        responsibilities:
+          - "fast_responses"
+          - "data_extraction"
+          - "classification"
+          - "simple_tasks"
+        context_window: 200000
+        cost_per_1k_tokens: 0.00025
+        priority: 3
+
+  google:
+    api_key: "${GOOGLE_API_KEY}"  # Defina no .env
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    timeout: 60
+    max_retries: 3
+    models:
+      gemini_1_5_pro:
+        name: "gemini-1.5-pro"
+        max_tokens: 8192
+        temperature: 0.7
+        responsibilities:
+          - "multimodal_analysis"
+          - "long_context_reasoning"
+          - "complex_queries"
+        context_window: 2000000
+        cost_per_1k_tokens: 0.00125
+        priority: 2
+      gemini_1_5_flash:
+        name: "gemini-1.5-flash"
+        max_tokens: 8192
+        temperature: 0.3
+        responsibilities:
+          - "real_time_responses"
+          - "batch_processing"
+          - "embeddings_generation"
+        context_window: 1000000
+        cost_per_1k_tokens: 0.00075
+        priority: 3
+
+  deepseek:
+    api_key: "${DEEPSEEK_API_KEY}"  # Defina no .env
+    base_url: "https://api.deepseek.com"
+    timeout: 60
+    max_retries: 3
+    models:
+      deepseek_chat:
+        name: "deepseek-chat"
+        max_tokens: 4096
+        temperature: 0.7
+        responsibilities:
+          - "code_analysis"
+          - "mathematical_reasoning"
+          - "logical_problem_solving"
+          - "algorithm_optimization"
+        context_window: 32768
+        cost_per_1k_tokens: 0.00014
+        priority: 1
+      deepseek_coder:
+        name: "deepseek-coder"
+        max_tokens: 4096
+        temperature: 0.3
+        responsibilities:
+          - "advanced_coding"
+          - "code_optimization"
+          - "technical_architecture"
+          - "system_design"
+        context_window: 16384
+        cost_per_1k_tokens: 0.00014
+        priority: 2
+
+# ==========================================
+# CONFIGURAÇÃO DE EMBEDDINGS
+# ==========================================
+embeddings:
+  primary_provider: "openai"
+  providers:
+    openai:
+      api_key: "${OPENAI_API_KEY}"
+      models:
+        text_embedding_3_large:
+          name: "text-embedding-3-large"
+          dimensions: 3072
+          max_input: 8191
+          cost_per_1k_tokens: 0.00013
+          use_for:
+            - "semantic_search"
+            - "document_similarity"
+            - "clustering"
+        text_embedding_3_small:
+          name: "text-embedding-3-small"
+          dimensions: 1536
+          max_input: 8191
+          cost_per_1k_tokens: 0.00002
+          use_for:
+            - "quick_embeddings"
+            - "classification"
+            - "lightweight_search"
+    
+    google:
+      api_key: "${GOOGLE_API_KEY}"
+      models:
+        embedding_001:
+          name: "embedding-001"
+          dimensions: 768
+          max_input: 2048
+          cost_per_1k_tokens: 0.00001
+          use_for:
+            - "multilingual_embeddings"
+            - "content_embeddings"
+
+# ==========================================
+# CONFIGURAÇÃO DE RESPONSABILIDADES RAG
+# ==========================================
+rag_responsibilities:
+  query_understanding:
+    primary_model: "openai.gpt4o_mini"
+    backup_model: "anthropic.claude_3_haiku"
+    temperature: 0.3
+    max_tokens: 1024
+    
+  document_retrieval:
+    embedding_model: "openai.text_embedding_3_large"
+    reranking_model: "anthropic.claude_3_haiku"
+    top_k: 10
+    rerank_top_k: 5
+    
+  context_synthesis:
+    primary_model: "anthropic.claude_3_5_sonnet"
+    backup_model: "openai.gpt4o"
+    temperature: 0.5
+    max_tokens: 4096
+    
+  response_generation:
+    code_tasks: "openai.gpt4o_mini"
+    analysis_tasks: "anthropic.claude_3_5_sonnet"
+    creative_tasks: "google.gemini_1_5_pro"
+    fast_responses: "groq.llama3_1_70b"
+    
+  quality_control:
+    fact_check_model: "openai.gpt4o"
+    coherence_check_model: "anthropic.claude_3_5_sonnet"
+    temperature: 0.2
+    max_tokens: 2048
+
+# ==========================================
+# CONFIGURAÇÕES DE ROTEAMENTO
+# ==========================================
+routing:
+  strategy: "cost_performance_optimized"  # Options: cost_optimized, performance_optimized, balanced, cost_performance_optimized
+  
+  task_detection:
+    enabled: true
+    confidence_threshold: 0.8
+    
+  fallback_chain:
+    - "openai.gpt4o_mini"
+    - "anthropic.claude_3_haiku"
+    - "google.gemini_1_5_flash"
+    
+  cost_limits:
+    daily_budget: 10.00  # USD
+    per_request_limit: 0.50  # USD
+    warn_threshold: 0.80  # 80% of budget
+    
+  performance_targets:
+    max_latency: 30  # seconds
+    preferred_latency: 10  # seconds
+    
+# ==========================================
+# CONFIGURAÇÕES DE CACHE E OTIMIZAÇÃO
+# ==========================================
+optimization:
+  caching:
+    enabled: true
+    ttl_seconds: 3600
+    max_cache_size: 1000
+    cache_embeddings: true
+    cache_responses: true
+    
+  batching:
+    enabled: true
+    max_batch_size: 10
+    batch_timeout: 5  # seconds
+    
+  rate_limiting:
+    requests_per_minute: 100
+    requests_per_hour: 1000
+    burst_limit: 20
+
+# ==========================================
+# CONFIGURAÇÕES DE MONITORAMENTO
+# ==========================================
+monitoring:
+  enabled: true
+  log_requests: true
+  log_responses: false  # Por privacidade
+  track_costs: true
+  track_latency: true
+  
+  alerts:
+    high_cost_threshold: 5.00  # USD
+    high_latency_threshold: 60  # seconds
+    error_rate_threshold: 0.05  # 5%
+    
+  metrics:
+    - "total_requests"
+    - "total_cost"
+    - "average_latency"
+    - "error_rate"
+    - "tokens_used"
+    - "cache_hit_rate"
+
+# ==========================================
+# CONFIGURAÇÕES DE DESENVOLVIMENTO
+# ==========================================
+development:
+  debug_mode: false
+  verbose_logging: false
+  mock_api_calls: false
+  cost_simulation: true
+  
+  testing:
+    use_smaller_models: true
+    reduced_context: true
+    mock_expensive_calls: true 
+# ===========================================
+# DISTRIBUIÇÃO ESPECÍFICA DE RESPONSABILIDADES
+# ===========================================
+task_routing:
+  # Códificação e desenvolvimento
+  code_generation: "openai.gpt4o_mini"          # Rápido e eficiente
+  code_review: "openai.gpt4o"                    # Análise profunda
+  debugging: "deepseek.deepseek_coder"           # Especialista em código
+  refactoring: "deepseek.deepseek_coder"         # Otimização
+  architecture_design: "openai.gpt4o"           # Visão arquitetural
+  
+  # Análise e documentação
+  document_analysis: "anthropic.claude_3_5_sonnet"     # Excelente em texto
+  technical_writing: "anthropic.claude_3_5_sonnet"     # Escrita técnica
+  content_creation: "anthropic.claude_3_5_sonnet"      # Criação de conteúdo
+  research_synthesis: "anthropic.claude_3_5_sonnet"    # Síntese de pesquisa
+  
+  # Consultas e tarefas rápidas
+  quick_queries: "google.gemini_1_5_flash"       # Alta velocidade
+  summarization: "anthropic.claude_3_haiku"      # Resumos eficientes
+  translation: "google.gemini_1_5_pro"           # Multilíngue
+  simple_explanations: "openai.gpt35_turbo"     # Explicações simples
+  
+  # Análise complexa e raciocínio
+  complex_analysis: "openai.gpt4o"               # Análise profunda
+  mathematical_reasoning: "deepseek.deepseek_chat" # Matemática avançada
+  logical_problem_solving: "deepseek.deepseek_chat" # Lógica
+  multimodal_analysis: "google.gemini_1_5_pro"   # Múltiplas modalidades
+  
+  # Contexto longo e processamento em lote
+  long_context_reasoning: "google.gemini_1_5_pro"  # 2M tokens de contexto
+  batch_processing: "google.gemini_1_5_flash"      # Processamento eficiente
+  real_time_responses: "google.gemini_1_5_flash"   # Tempo real

@@ -1,0 +1,121 @@
+# ===========================================
+# CONFIGURAÇÃO DE API KEYS - LLM PROVIDERS
+# ===========================================
+
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_ORG_ID=your-organization-id-here  # Opcional
+
+# Anthropic Configuration
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
+
+# Google AI Configuration
+GOOGLE_API_KEY=your-google-ai-api-key-here
+
+# DeepSeek Configuration
+DEEPSEEK_API_KEY=sk-your-deepseek-api-key-here
+
+# ===========================================
+# DATABASE CONFIGURATIONS
+# ===========================================
+
+# Neo4j Configuration (se usar)
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=your-neo4j-password
+
+# Qdrant Configuration (se usar remoto)
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=your-qdrant-api-key  # Opcional para instância local
+
+# ===========================================
+# APPLICATION SETTINGS
+# ===========================================
+
+# Debug and Development
+DEBUG_MODE=false
+VERBOSE_LOGGING=false
+MOCK_API_CALLS=false  # Para desenvolvimento sem gastar créditos
+
+# Cost Control
+DAILY_BUDGET_USD=10.00
+REQUEST_COST_LIMIT_USD=0.50
+COST_ALERT_THRESHOLD=0.80
+
+# Rate Limiting
+REQUESTS_PER_MINUTE=100
+REQUESTS_PER_HOUR=1000
+BURST_LIMIT=20
+
+# Cache Settings
+CACHE_ENABLED=true
+CACHE_TTL_SECONDS=3600
+MAX_CACHE_SIZE=1000
+
+# ===========================================
+# MONITORING AND LOGS
+# ===========================================
+
+# Prometheus Monitoring
+PROMETHEUS_ENABLED=true
+PROMETHEUS_PORT=8001
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_TO_FILE=true
+LOG_REQUESTS=true
+LOG_RESPONSES=false  # Manter false por privacidade
+TRACK_COSTS=true
+TRACK_LATENCY=true
+
+# ===========================================
+# SECURITY SETTINGS
+# ===========================================
+
+# API Security
+API_HOST=0.0.0.0
+API_PORT=8000
+CORS_ORIGINS=*  # Mudança para domínios específicos em produção
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+
+# ===========================================
+# PROVIDER PREFERENCES
+# ===========================================
+
+# Primary providers for different tasks
+PRIMARY_EMBEDDING_PROVIDER=openai
+PRIMARY_LLM_PROVIDER=openai
+FALLBACK_LLM_PROVIDER=anthropic
+
+# Model routing strategy
+# Options: cost_optimized, performance_optimized, balanced, cost_performance_optimized
+ROUTING_STRATEGY=cost_performance_optimized
+
+# Task-specific model preferences
+CODE_GENERATION_MODEL=openai.gpt4o_mini
+DOCUMENT_ANALYSIS_MODEL=anthropic.claude_3_5_sonnet
+QUICK_QUERIES_MODEL=openai.gpt35_turbo
+COMPLEX_ANALYSIS_MODEL=openai.gpt4o
+
+# ===========================================
+# DEVELOPMENT AND TESTING
+# ===========================================
+
+# Testing Configuration
+USE_SMALLER_MODELS_IN_TEST=true
+REDUCED_CONTEXT_IN_TEST=true
+MOCK_EXPENSIVE_CALLS_IN_TEST=true
+COST_SIMULATION_ENABLED=true
+
+# ===========================================
+# OPTIONAL FEATURES
+# ===========================================
+
+# Features that can be enabled/disabled
+ENABLE_CACHING=true
+ENABLE_BATCHING=true
+ENABLE_MONITORING=true
+ENABLE_COST_TRACKING=true
+ENABLE_GRAPH_STORE=false  # Set to true if using Neo4j 

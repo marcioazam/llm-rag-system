@@ -3,7 +3,7 @@ import yaml
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import logging
-import ollama
+# Removido import ollama - usando apenas LLMs em nuvem
 from prometheus_client import Counter, Histogram
 import time
 import uuid
@@ -189,9 +189,9 @@ class RAGPipeline:
                 "rerank_model": None
             },
             "llm": {
-                "model": "llama3.1:8b-instruct-q4_K_M",
-                "code_model": "codellama:7b-instruct",
-                "base_url": "http://localhost:11434",
+                "provider": "openai",
+                "model": "gpt-3.5-turbo",
+                "code_model": "gpt-4",
                 "temperature": 0.7,
                 "max_tokens": 1000
             },
@@ -349,30 +349,35 @@ class RAGPipeline:
         else:
             self.routing_mode = 'disabled'
 
-        # Ollama client
-        try:
-            tmp_client = ollama.Client(host=self.config["llm"]["base_url"])
-            # Teste rápido de conectividade
-            try:
-                tmp_client.list()
-            except Exception:
-                raise ConnectionError("Ollama não responde")
-
-            self.ollama_client = tmp_client
-        except Exception:
-            class _Mock:
-                def generate(self, **kwargs):
-                    return {"response": "[Resposta mock – Ollama indisponível]"}
-
-                def chat(self, **kwargs):
-                    return {"message": {"content": "[Resposta mock]"}}
-
-            self.ollama_client = _Mock()
-            self.logger.warning("Ollama indisponível – usando respostas mock para testes.")
+        # Cliente LLM em nuvem (removido Ollama)
+        self.cloud_llm_client = self._initialize_cloud_llm()
 
         # Modelos disponíveis (compatibilidade)
         self.model = self.config["llm"]["model"]
-        self.code_model = self.config["llm"].get("code_model", "codellama:7b-instruct")
+        self.code_model = self.config["llm"].get("code_model", "gpt-4")
+    
+    def _initialize_cloud_llm(self):
+        """Inicializa cliente para LLM em nuvem"""
+        llm_config = self.config["llm"]
+        provider = llm_config.get("provider", "openai")
+        
+        if provider == "openai":
+            try:
+                import openai
+                return openai.OpenAI()
+            except ImportError:
+                self.logger.warning("OpenAI não instalado. Instale com: pip install openai")
+                return None
+        elif provider == "anthropic":
+            try:
+                import anthropic
+                return anthropic.Anthropic()
+            except ImportError:
+                self.logger.warning("Anthropic não instalado. Instale com: pip install anthropic")
+                return None
+        else:
+            self.logger.warning(f"Provider {provider} não suportado")
+            return None
 
     def _get_chunker(self, chunking_strategy: str = None, chunk_size: int = None, chunk_overlap: int = None):
         """Obter chunker baseado na estratégia"""
@@ -1031,14 +1036,20 @@ Resposta:"""
 
         self.logger.info("Generating LLM-only response")
         def _llm_call():
-            return self.ollama_client.generate(
+            if self.cloud_llm_client is None:
+                return {"response": "[LLM em nuvem não disponível]"}
+            
+            # Usar OpenAI API
+            response = self.cloud_llm_client.chat.completions.create(
                 model=self.config["llm"]["model"],
-                prompt=prompt,
-                options={
-                    "temperature": self.config["llm"]["temperature"],
-                    "num_predict": self.config["llm"]["max_tokens"]
-                }
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": question}
+                ],
+                temperature=self.config["llm"]["temperature"],
+                max_tokens=self.config["llm"]["max_tokens"]
             )
+            return {"response": response.choices[0].message.content}
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _exec:
             future = _exec.submit(_llm_call)

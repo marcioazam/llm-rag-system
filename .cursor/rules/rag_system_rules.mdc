@@ -1,0 +1,320 @@
+# 🚀 CURSOR IDE RULES FOR WORLD-CLASS RAG SYSTEM
+
+## 📋 **CORE ARCHITECTURE RULES**
+
+### **RULE 1: API-FIRST ARCHITECTURE**
+- ALWAYS use external LLM APIs (OpenAI, Anthropic, Google, DeepSeek) instead of local models
+- NEVER implement local model dependencies (sentence-transformers, torch, ollama)
+- ALWAYS implement proper API key management with environment variables
+- ALWAYS include API rate limiting and cost controls
+- ALWAYS implement fallback mechanisms between providers
+
+### **RULE 2: MODULAR COMPONENT DESIGN**
+- ALWAYS separate concerns: embeddings, retrieval, generation, routing
+- ALWAYS use dependency injection for component initialization
+- ALWAYS implement abstract base classes for extensibility
+- NEVER create monolithic classes with multiple responsibilities
+- ALWAYS follow the Single Responsibility Principle
+
+### **RULE 3: CONFIGURATION-DRIVEN SYSTEM**
+- ALWAYS use YAML configuration files for all system parameters
+- ALWAYS support environment variable substitution in configs
+- ALWAYS validate configuration schemas at startup
+- NEVER hardcode API endpoints, model names, or system parameters
+- ALWAYS provide sensible defaults with override capabilities
+
+---
+
+## 🔧 **CODE QUALITY RULES**
+
+### **RULE 4: TYPE SAFETY AND DOCUMENTATION**
+- ALWAYS use type hints for all function parameters and return values
+- ALWAYS use dataclasses or Pydantic models for structured data
+- ALWAYS include comprehensive docstrings with examples
+- ALWAYS use enum classes for constants and options
+- NEVER use bare `Any` type without justification
+
+### **RULE 5: ERROR HANDLING AND RESILIENCE**
+- ALWAYS implement try-catch blocks for external API calls
+- ALWAYS use exponential backoff with jitter for retries
+- ALWAYS log errors with sufficient context for debugging
+- ALWAYS provide meaningful error messages to users
+- NEVER let unhandled exceptions crash the system
+
+### **RULE 6: ASYNC AND PERFORMANCE**
+- ALWAYS use async/await for I/O operations (API calls, database)
+- ALWAYS implement connection pooling for database connections
+- ALWAYS use batching for multiple similar operations
+- ALWAYS implement caching for expensive operations
+- NEVER block the event loop with synchronous operations
+
+---
+
+## 📊 **DATA MANAGEMENT RULES**
+
+### **RULE 7: VECTOR STORE OPTIMIZATION**
+- ALWAYS use Qdrant with proper indexing strategies
+- ALWAYS implement incremental indexing for large datasets
+- ALWAYS use appropriate embedding dimensions (1536-3072)
+- ALWAYS implement metadata filtering capabilities
+- NEVER store embeddings without proper metadata
+
+### **RULE 8: CHUNK MANAGEMENT**
+- ALWAYS implement multiple chunking strategies (recursive, semantic, code-aware)
+- ALWAYS maintain chunk overlap (10-20% of chunk size)
+- ALWAYS preserve document relationships in metadata
+- ALWAYS implement chunk deduplication
+- NEVER exceed optimal chunk sizes (300-800 tokens)
+
+### **RULE 9: METADATA ENRICHMENT**
+- ALWAYS extract and store code symbols, functions, classes
+- ALWAYS implement language-specific analysis (Python AST, Tree-sitter)
+- ALWAYS maintain file relationships and dependencies
+- ALWAYS include source attribution and timestamps
+- NEVER lose document provenance information
+
+---
+
+## 🧠 **LLM INTEGRATION RULES**
+
+### **RULE 10: INTELLIGENT MODEL ROUTING**
+- ALWAYS implement task-based model selection
+- ALWAYS use cost-performance optimization for model choice
+- ALWAYS implement provider fallback mechanisms
+- ALWAYS track usage statistics and costs per provider
+- NEVER use expensive models for simple tasks
+
+### **RULE 11: PROMPT ENGINEERING**
+- ALWAYS use dynamic prompt selection based on task type
+- ALWAYS implement context injection with relevance filtering
+- ALWAYS include system prompts for consistent behavior
+- ALWAYS implement prompt templates with variable substitution
+- NEVER exceed model context limits without truncation
+
+### **RULE 12: RESPONSE OPTIMIZATION**
+- ALWAYS implement response caching for repeated queries
+- ALWAYS add source citations to generated responses
+- ALWAYS implement response streaming for long generations
+- ALWAYS validate response quality and relevance
+- NEVER return responses without proper attribution
+
+---
+
+## 🔍 **RETRIEVAL RULES**
+
+### **RULE 13: HYBRID SEARCH IMPLEMENTATION**
+- ALWAYS combine semantic search with keyword matching (BM25)
+- ALWAYS implement query expansion and enhancement
+- ALWAYS use MMR (Maximal Marginal Relevance) for diversity
+- ALWAYS implement relevance threshold filtering
+- NEVER rely on single search strategy
+
+### **RULE 14: CONTEXT OPTIMIZATION**
+- ALWAYS limit context to model's effective window
+- ALWAYS rank and filter retrieved chunks by relevance
+- ALWAYS implement context compression techniques
+- ALWAYS preserve most relevant information when truncating
+- NEVER include irrelevant context that dilutes quality
+
+### **RULE 15: QUERY PROCESSING**
+- ALWAYS implement query preprocessing and normalization
+- ALWAYS detect query intent and route appropriately
+- ALWAYS expand queries with synonyms and related terms
+- ALWAYS implement query validation and sanitization
+- NEVER process malformed or potentially harmful queries
+
+---
+
+## 🚀 **API DESIGN RULES**
+
+### **RULE 16: RESTful API STANDARDS**
+- ALWAYS follow REST conventions for endpoint design
+- ALWAYS implement proper HTTP status codes
+- ALWAYS use JSON for request/response payloads
+- ALWAYS implement request validation with Pydantic
+- NEVER expose internal implementation details in APIs
+
+### **RULE 17: AUTHENTICATION AND SECURITY**
+- ALWAYS implement API key authentication
+- ALWAYS use HTTPS for all external communications
+- ALWAYS validate and sanitize all inputs
+- ALWAYS implement rate limiting per user/key
+- NEVER log sensitive information (API keys, user data)
+
+### **RULE 18: MONITORING AND OBSERVABILITY**
+- ALWAYS implement comprehensive logging with structured format
+- ALWAYS track metrics (latency, cost, usage, errors)
+- ALWAYS implement health check endpoints
+- ALWAYS provide detailed error responses for debugging
+- NEVER deploy without proper monitoring in place
+
+---
+
+## 💰 **COST OPTIMIZATION RULES**
+
+### **RULE 19: BUDGET CONTROLS**
+- ALWAYS implement daily/monthly budget limits
+- ALWAYS track costs per request and per user
+- ALWAYS implement cost-based model selection
+- ALWAYS provide cost estimation before expensive operations
+- NEVER allow unlimited spending without controls
+
+### **RULE 20: CACHING STRATEGIES**
+- ALWAYS implement multi-level caching (memory, Redis, disk)
+- ALWAYS cache embeddings to avoid recomputation
+- ALWAYS cache frequent query responses
+- ALWAYS implement cache invalidation strategies
+- NEVER cache sensitive or user-specific data inappropriately
+
+---
+
+## 🧪 **TESTING RULES**
+
+### **RULE 21: COMPREHENSIVE TEST COVERAGE**
+- ALWAYS write unit tests for all business logic
+- ALWAYS implement integration tests for API endpoints
+- ALWAYS test error conditions and edge cases
+- ALWAYS mock external API calls in tests
+- NEVER deploy code without adequate test coverage (>80%)
+
+### **RULE 22: PERFORMANCE TESTING**
+- ALWAYS implement load testing for API endpoints
+- ALWAYS test with realistic data volumes
+- ALWAYS measure and optimize response times
+- ALWAYS test memory usage and resource consumption
+- NEVER assume performance without measurement
+
+### **RULE 23: DATA QUALITY TESTING**
+- ALWAYS validate embedding quality and consistency
+- ALWAYS test retrieval relevance and accuracy
+- ALWAYS verify response quality with human evaluation
+- ALWAYS test with diverse query types and domains
+- NEVER deploy without quality validation
+
+---
+
+## 🔄 **DEPLOYMENT RULES**
+
+### **RULE 24: CONTAINERIZATION AND ORCHESTRATION**
+- ALWAYS use Docker for consistent deployment environments
+- ALWAYS implement proper health checks in containers
+- ALWAYS use multi-stage builds for optimization
+- ALWAYS implement graceful shutdown handling
+- NEVER deploy without proper container resource limits
+
+### **RULE 25: ENVIRONMENT MANAGEMENT**
+- ALWAYS maintain separate dev/staging/production environments
+- ALWAYS use environment-specific configurations
+- ALWAYS implement proper secret management
+- ALWAYS use infrastructure as code (IaC) practices
+- NEVER mix environment configurations
+
+### **RULE 26: CONTINUOUS INTEGRATION/DEPLOYMENT**
+- ALWAYS implement automated testing in CI/CD pipelines
+- ALWAYS use automated deployment with rollback capabilities
+- ALWAYS implement database migration strategies
+- ALWAYS validate deployments with automated smoke tests
+- NEVER deploy manually without proper validation
+
+---
+
+## 📈 **SCALABILITY RULES**
+
+### **RULE 27: HORIZONTAL SCALING**
+- ALWAYS design stateless services for horizontal scaling
+- ALWAYS implement proper load balancing strategies
+- ALWAYS use connection pooling for database connections
+- ALWAYS implement distributed caching when needed
+- NEVER assume single-instance deployment
+
+### **RULE 28: DATABASE OPTIMIZATION**
+- ALWAYS implement proper indexing strategies
+- ALWAYS use connection pooling and query optimization
+- ALWAYS implement database monitoring and alerting
+- ALWAYS plan for data archival and cleanup
+- NEVER ignore database performance metrics
+
+---
+
+## 🔒 **SECURITY RULES**
+
+### **RULE 29: DATA PROTECTION**
+- ALWAYS encrypt sensitive data at rest and in transit
+- ALWAYS implement proper access controls
+- ALWAYS validate and sanitize all user inputs
+- ALWAYS implement audit logging for sensitive operations
+- NEVER store credentials or sensitive data in code
+
+### **RULE 30: COMPLIANCE AND PRIVACY**
+- ALWAYS implement data retention and deletion policies
+- ALWAYS provide user consent mechanisms for data processing
+- ALWAYS implement GDPR/privacy compliance measures
+- ALWAYS document data processing and storage practices
+- NEVER process personal data without proper legal basis
+
+---
+
+## 🎯 **DOMAIN-SPECIFIC RULES**
+
+### **RULE 31: CODE ANALYSIS INTEGRATION**
+- ALWAYS implement language-specific code analyzers
+- ALWAYS extract symbols, functions, and dependencies
+- ALWAYS maintain code relationship graphs
+- ALWAYS implement incremental code analysis
+- NEVER analyze code without proper language detection
+
+### **RULE 32: DOCUMENT PROCESSING**
+- ALWAYS implement multi-format document support
+- ALWAYS preserve document structure and formatting
+- ALWAYS extract metadata and document properties
+- ALWAYS implement document versioning and updates
+- NEVER lose document context during processing
+
+### **RULE 33: KNOWLEDGE GRAPH INTEGRATION**
+- ALWAYS implement entity extraction and linking
+- ALWAYS maintain relationships between concepts
+- ALWAYS implement graph-based retrieval strategies
+- ALWAYS provide graph visualization capabilities
+- NEVER ignore semantic relationships in data
+
+---
+
+## 🏆 **EXCELLENCE RULES**
+
+### **RULE 34: CONTINUOUS IMPROVEMENT**
+- ALWAYS collect user feedback and usage analytics
+- ALWAYS implement A/B testing for improvements
+- ALWAYS monitor and optimize system performance
+- ALWAYS stay updated with latest RAG research and techniques
+- NEVER stop iterating and improving the system
+
+### **RULE 35: DOCUMENTATION AND KNOWLEDGE SHARING**
+- ALWAYS maintain comprehensive system documentation
+- ALWAYS document architectural decisions and rationale
+- ALWAYS provide API documentation with examples
+- ALWAYS implement automated documentation generation
+- NEVER leave undocumented code or configurations
+
+---
+
+## 🎨 **FINAL RULE: WORLD-CLASS STANDARDS**
+
+### **RULE 36: INDUSTRY LEADERSHIP**
+- ALWAYS benchmark against industry-leading RAG systems
+- ALWAYS implement cutting-edge techniques and optimizations
+- ALWAYS contribute to open-source RAG community
+- ALWAYS maintain code quality that serves as industry example
+- NEVER settle for "good enough" - always strive for excellence
+
+---
+
+**These rules ensure your RAG system will be:**
+- 🚀 **Performant**: Sub-3s response times with intelligent caching
+- 💰 **Cost-effective**: Optimized API usage with budget controls
+- 🔒 **Secure**: Enterprise-grade security and compliance
+- 📊 **Scalable**: Horizontal scaling with proper architecture
+- 🧠 **Intelligent**: State-of-the-art AI integration and routing
+- 🔧 **Maintainable**: Clean, documented, and testable code
+- 🌟 **Industry-leading**: Setting standards for RAG systems
+
+**REMEMBER: These rules are not suggestions - they are requirements for building the world's best RAG system!** 

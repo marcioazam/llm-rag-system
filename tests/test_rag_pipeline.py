@@ -5,8 +5,17 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
-from src.rag_pipeline import RAGPipeline
-from src.chunking.base_chunker import Chunk
+# Mock all external dependencies before importing RAGPipeline
+with patch.multiple(
+    'sys.modules',
+    openai=Mock(),
+    sentence_transformers=Mock(),
+    qdrant_client=Mock(),
+    neo4j=Mock(),
+    ollama=Mock()
+):
+    from src.rag_pipeline import RAGPipeline
+    from src.chunking.base_chunker import Chunk
 
 
 class TestRAGPipeline:
@@ -22,7 +31,7 @@ chunking:
   chunk_overlap: 200
 
 embeddings:
-  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  model_name: "all-MiniLM-L6-v2"
   device: "cpu"
 
 vectordb:
@@ -36,8 +45,8 @@ retrieval:
   similarity_threshold: 0.5
 
 llm:
-  model: "llama2"
-  base_url: "http://localhost:11434"
+  provider: "openai"
+  model: "gpt-3.5-turbo"
 
 model_router:
   type: "simple"
@@ -56,45 +65,62 @@ neo4j:
         if os.path.exists(temp_path):
             os.unlink(temp_path)
 
+    @pytest.fixture(autouse=True)
+    def setup_environment_and_mocks(self):
+        """Configura ambiente de teste e mocks para todas as dependências."""
+        # Configurar variáveis de ambiente para testes
+        os.environ['OPENAI_API_KEY'] = 'test-key-mock'
+        os.environ['TESTING'] = 'true'
+        
+        with patch.multiple(
+            'src.rag_pipeline',
+            # Chunkers
+            SemanticChunker=Mock(),
+            RecursiveChunker=Mock(),
+            # Services
+            EmbeddingService=Mock(),
+            HybridRetriever=Mock(),
+            DocumentLoader=Mock(),
+            ModelRouter=Mock(),
+            # Stores
+            Neo4jStore=Mock(),
+            QdrantVectorStore=Mock(),
+            SQLiteMetadataStore=Mock(),
+            # External APIs
+            openai=Mock()
+        ) as mocks:
+            
+            # Configurar mocks para retornar instâncias válidas
+            for mock_name, mock_obj in mocks.items():
+                if hasattr(mock_obj, 'return_value'):
+                    mock_instance = Mock()
+                    mock_obj.return_value = mock_instance
+                    
+                    # Configurações específicas por tipo
+                    if 'Chunker' in mock_name:
+                        mock_instance.chunk.return_value = []
+                        mock_instance.chunk_text.return_value = []
+                    elif mock_name == 'EmbeddingService':
+                        mock_instance.embed_texts.return_value = [[0.1] * 384]
+                    elif mock_name == 'HybridRetriever':
+                        mock_instance.retrieve.return_value = []
+                    elif mock_name == 'ModelRouter':
+                        mock_instance.route_query.return_value = {'model': 'test', 'strategy': 'test'}
+            
+            # Mock específico para OpenAI
+            mock_openai_client = Mock()
+            mock_response = Mock()
+            mock_response.choices = [Mock()]
+            mock_response.choices[0].message.content = "Resposta mock do teste"
+            mock_openai_client.chat.completions.create.return_value = mock_response
+            
+            with patch('openai.OpenAI', return_value=mock_openai_client):
+                yield mocks
+    
     @pytest.fixture
-    def mock_dependencies(self):
-        """Mock das dependências principais do RAGPipeline."""
-        with patch('src.rag_pipeline.SemanticChunker') as mock_semantic, \
-             patch('src.rag_pipeline.RecursiveChunker') as mock_recursive, \
-             patch('src.rag_pipeline.EmbeddingService') as mock_embedding, \
-             patch('src.rag_pipeline.HybridRetriever') as mock_retriever, \
-             patch('src.rag_pipeline.DocumentLoader') as mock_loader, \
-             patch('src.rag_pipeline.ModelRouter') as mock_router, \
-             patch('src.rag_pipeline.Neo4jStore') as mock_neo4j:
-            
-            # Configurar mocks
-            mock_chunker_instance = Mock()
-            mock_recursive.return_value = mock_chunker_instance
-            mock_semantic.return_value = mock_chunker_instance
-            
-            mock_embedding_instance = Mock()
-            mock_embedding.return_value = mock_embedding_instance
-            
-            mock_retriever_instance = Mock()
-            mock_retriever.return_value = mock_retriever_instance
-            
-            mock_loader_instance = Mock()
-            mock_loader.return_value = mock_loader_instance
-            
-            mock_router_instance = Mock()
-            mock_router.return_value = mock_router_instance
-            
-            mock_neo4j_instance = Mock()
-            mock_neo4j.return_value = mock_neo4j_instance
-            
-            yield {
-                'chunker': mock_chunker_instance,
-                'embedding': mock_embedding_instance,
-                'retriever': mock_retriever_instance,
-                'loader': mock_loader_instance,
-                'router': mock_router_instance,
-                'neo4j': mock_neo4j_instance
-            }
+    def mock_dependencies(self, setup_environment_and_mocks):
+        """Fixture de compatibilidade para testes existentes."""
+        return setup_environment_and_mocks
 
     def test_init_with_config_file(self, temp_config_file, mock_dependencies):
         """Testa inicialização com arquivo de configuração."""
@@ -102,7 +128,7 @@ neo4j:
         
         assert pipeline.config is not None
         assert pipeline.config['chunking']['method'] == 'recursive'
-        assert pipeline.config['embeddings']['model_name'] == 'sentence-transformers/all-MiniLM-L6-v2'
+        assert pipeline.config['embeddings']['model_name'] == 'all-MiniLM-L6-v2'
 
     def test_init_with_config_dict(self, mock_dependencies):
         """Testa inicialização com dicionário de configuração via arquivo temporário."""
@@ -122,8 +148,8 @@ retrieval:
   similarity_threshold: 0.5
 
 llm:
-  model: "test-model"
-  base_url: "http://localhost:11434"
+  provider: "openai"
+  model: "gpt-3.5-turbo"
 
 model_router:
   type: "simple"
