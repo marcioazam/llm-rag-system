@@ -108,8 +108,12 @@ class RAGPipeline:
                 start_http_server(port, registry=self._registry)
                 PROMETHEUS_STARTED = True
                 self.logger.info("Prometheus HTTP server iniciado na porta %s", port)
+            except (OSError, PermissionError) as exc:  # pragma: no cover
+                self.logger.warning("Falha ao iniciar servidor Prometheus (porta em uso ou sem permissão): %s", exc)
+            except ImportError as exc:  # pragma: no cover
+                self.logger.warning("Módulo prometheus_client não disponível: %s", exc)
             except Exception as exc:  # pragma: no cover
-                self.logger.warning("Falha ao iniciar servidor Prometheus: %s", exc)
+                self.logger.error("Erro inesperado ao configurar monitoramento: %s", exc)
 
         # Inicializar componentes
         self._initialize_components()
@@ -203,9 +207,9 @@ class RAGPipeline:
             },
             # Configurações de grafo / Neo4j
             "use_graph_store": False,
-            "neo4j_uri": "bolt://localhost:7687",
-            "neo4j_user": "neo4j",
-            "neo4j_password": "password"
+            "neo4j_uri": os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+            "neo4j_user": os.getenv("NEO4J_USER", "neo4j"),
+            "neo4j_password": os.getenv("NEO4J_PASSWORD", "test")
         }
 
     def _setup_logging(self):
@@ -320,10 +324,11 @@ class RAGPipeline:
         self.graph_store = None  # Garantir atributo sempre presente
         if self.config.get("use_graph_store", False):
             try:
+                import os
                 self.graph_store = Neo4jStore(
-                    uri=self.config.get("neo4j_uri", "bolt://localhost:7687"),
-                    user=self.config.get("neo4j_user", "neo4j"),
-                    password=self.config.get("neo4j_password", "password"),
+                    uri=self.config.get("neo4j_uri", os.getenv("NEO4J_URI", "bolt://localhost:7687")),
+                    user=self.config.get("neo4j_user", os.getenv("NEO4J_USER", "neo4j")),
+                    password=self.config.get("neo4j_password", os.getenv("NEO4J_PASSWORD", "")),
                 )
                 self.logger.info("Graph store (Neo4j) inicializado com sucesso")
             except Exception as e:  # pragma: no cover
@@ -382,7 +387,7 @@ class RAGPipeline:
     def _get_chunker(self, chunking_strategy: str = None, chunk_size: int = None, chunk_overlap: int = None):
         """Obter chunker baseado na estratégia"""
         chunking_config = self.config["chunking"]
-        strategy = chunking_strategy or chunking_config.get("method", "recursive")
+        strategy = chunking_strategy or chunking_config.get("method", "advanced")
         
         if strategy == "semantic":
             return SemanticChunker(
@@ -465,7 +470,7 @@ class RAGPipeline:
     def add_documents(self,
                      documents: List[Dict[str, str]],
                      project_id: str | None = None,
-                     chunking_strategy: str = 'recursive',
+                     chunking_strategy: str = 'advanced',
                      chunk_size: int = 500,
                      chunk_overlap: int = 50) -> None:
         """

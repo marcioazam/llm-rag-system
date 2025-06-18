@@ -52,6 +52,184 @@ class TestTemplateRenderer:
         expected = "Contexto: \nPergunta: Teste com lista vazia"
         assert result == expected
 
+    def test_render_template_multiple_query_placeholders(self):
+        """Testa template com múltiplos placeholders {{query}}."""
+        template = "Início: {{query}} Meio: {{query}} Fim: {{query}}"
+        query = "TESTE"
+        
+        result = render_template(template, query=query)
+        
+        expected = "Início: TESTE Meio: TESTE Fim: TESTE"
+        assert result == expected
+
+    def test_render_template_multiple_context_placeholders(self):
+        """Testa template com múltiplos placeholders {{context}}."""
+        template = "Primeiro: {{context}} Segundo: {{context}}"
+        query = "teste"
+        context_snippets = ["snippet1", "snippet2"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        expected = "Primeiro: snippet1\n\nsnippet2 Segundo: snippet1\n\nsnippet2"
+        assert result == expected
+
+    def test_render_template_special_characters(self):
+        """Testa com caracteres especiais na query e contexto."""
+        template = "Query: {{query}} Context: {{context}}"
+        query = "O que é 2+2? E sobre $100 & 50%?"
+        context_snippets = ["Preço: $100", "Desconto: 50%", "Fórmula: a + b = c"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        expected = "Query: O que é 2+2? E sobre $100 & 50%? Context: Preço: $100\n\nDesconto: 50%\n\nFórmula: a + b = c"
+        assert result == expected
+
+    def test_render_template_unicode_characters(self):
+        """Testa com caracteres unicode."""
+        template = "Query: {{query}} Context: {{context}}"
+        query = "测试查询 🚀 émojis"
+        context_snippets = ["Contexto en español", "Contenu français", "日本語コンテンツ"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        expected = "Query: 测试查询 🚀 émojis Context: Contexto en español\n\nContenu français\n\n日本語コンテンツ"
+        assert result == expected
+
+    def test_render_template_newlines_in_content(self):
+        """Testa com quebras de linha no conteúdo."""
+        template = "Query: {{query}} Context: {{context}}"
+        query = "Linha 1\nLinha 2\nLinha 3"
+        context_snippets = ["Primeira linha\nSegunda linha", "Outro\nMultilinha\nSnippet"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        expected = "Query: Linha 1\nLinha 2\nLinha 3 Context: Primeira linha\nSegunda linha\n\nOutro\nMultilinha\nSnippet"
+        assert result == expected
+
+    def test_render_template_no_placeholders(self):
+        """Testa template sem placeholders."""
+        template = "Este é um template estático sem placeholders"
+        query = "query qualquer"
+        
+        result = render_template(template, query=query)
+        
+        assert result == "Este é um template estático sem placeholders"
+
+    def test_render_template_empty_template(self):
+        """Testa com template vazio."""
+        template = ""
+        query = "query teste"
+        
+        result = render_template(template, query=query)
+        
+        assert result == ""
+
+    def test_render_template_empty_query(self):
+        """Testa com query vazia."""
+        template = "Query: {{query}}"
+        query = ""
+        
+        result = render_template(template, query=query)
+        
+        assert result == "Query: "
+
+    def test_render_template_case_sensitive_placeholders(self):
+        """Testa que placeholders são case sensitive."""
+        template = "{{Query}} {{QUERY}} {{context}} {{CONTEXT}}"
+        query = "teste"
+        context_snippets = ["snippet"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        # Apenas {{context}} deve ser substituído
+        assert result == "{{Query}} {{QUERY}} snippet {{CONTEXT}}"
+
+    def test_render_template_nested_braces(self):
+        """Testa comportamento com chaves aninhadas."""
+        template = "{{{query}}} {{{{query}}}}"
+        query = "teste"
+        
+        result = render_template(template, query=query)
+        
+        assert result == "{teste} {{teste}}"
+
+    def test_render_template_whitespace_preservation(self):
+        """Testa que espaços em branco são preservados."""
+        template = "  {{query}}  \n\n  {{context}}  "
+        query = "  query com espaços  "
+        context_snippets = ["  contexto com espaços  "]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        assert result == "    query com espaços    \n\n    contexto com espaços    "
+
+    def test_render_template_empty_strings_in_context(self):
+        """Testa com strings vazias nos snippets de contexto."""
+        template = "Context: {{context}}"
+        query = "teste"
+        context_snippets = ["", "não-vazio", "", "outro"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        assert result == "Context: \n\nnão-vazio\n\n\n\noutro"
+
+    def test_render_template_realistic_prompt(self):
+        """Testa com um template de prompt realista."""
+        template = """Você é um assistente útil. Responda à pergunta do usuário baseado no contexto fornecido.
+
+Pergunta do Usuário: {{query}}
+
+Contexto Relevante:
+{{context}}
+
+Por favor, forneça uma resposta abrangente baseada no contexto acima."""
+        
+        query = "O que é aprendizado de máquina?"
+        context_snippets = [
+            "Aprendizado de máquina é um subconjunto da inteligência artificial.",
+            "Envolve treinar algoritmos em dados para fazer previsões.",
+            "Tipos comuns incluem aprendizado supervisionado e não supervisionado."
+        ]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        expected = """Você é um assistente útil. Responda à pergunta do usuário baseado no contexto fornecido.
+
+Pergunta do Usuário: O que é aprendizado de máquina?
+
+Contexto Relevante:
+Aprendizado de máquina é um subconjunto da inteligência artificial.
+
+Envolve treinar algoritmos em dados para fazer previsões.
+
+Tipos comuns incluem aprendizado supervisionado e não supervisionado.
+
+Por favor, forneça uma resposta abrangente baseada no contexto acima."""
+        
+        assert result == expected
+
+    def test_render_template_very_long_content(self):
+        """Testa com conteúdo muito longo."""
+        template = "Query: {{query}} Context: {{context}}"
+        query = "a" * 1000
+        context_snippets = ["b" * 500, "c" * 500]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        expected_context = "b" * 500 + "\n\n" + "c" * 500
+        expected = f"Query: {'a' * 1000} Context: {expected_context}"
+        assert result == expected
+
+    def test_render_template_single_context_snippet(self):
+        """Testa com apenas um snippet de contexto."""
+        template = "Context: {{context}}"
+        query = "teste"
+        context_snippets = ["Apenas um snippet"]
+        
+        result = render_template(template, query=query, context_snippets=context_snippets)
+        
+        assert result == "Context: Apenas um snippet"
+
     def test_render_template_single_context_snippet(self):
         """Testa comportamento com um único snippet de contexto."""
         template = "{{context}}\n\nPergunta: {{query}}"

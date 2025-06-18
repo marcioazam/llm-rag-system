@@ -1,0 +1,396 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# ==========================================
+# RAG SYSTEM SPECIFIC
+# ==========================================
+
+# API Keys e Configuracoes Sensiveis
+.env
+.env.local
+.env.production
+.env.staging
+config/secrets.yaml
+config/api_keys.yaml
+
+# Dados e Indices
+data/raw/
+data/processed/
+data/uploads/
+chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Cache
+.cache/
+*.cache
+__pycache__/
+
+# Modelos e Embeddings
+models/
+embeddings/
+checkpoints/
+
+# Neo4j
+neo4j/
+
+# Qdrant
+qdrant_storage/
+
+# Temporary files
+temp/
+tmp/
+.tmp/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.backup
+*.bak
+*.orig
+
+# Process IDs
+*.pid
+
+# ==========================================
+# SECURITY PATTERNS
+# ==========================================
+
+# Credentials and secrets
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+*.cer
+secret*
+*secret*
+*password*
+*token*
+*api_key*
+*access_key*
+*private_key*
+
+# Configuration files with sensitive data
+config.ini
+config.cfg
+settings.ini
+settings.cfg
+.env*
+!.env.example
+
+# Database files
+*.sql
+*.dump
+*.backup
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# ==========================================
+# DEVELOPMENT AND TESTING
+# ==========================================
+
+# Test results and coverage
+test-results/
+coverage/
+reports/
+.coverage*
+coverage.xml
+*.cover
+.pytest_cache/
+.tox/
+.nox/
+
+# Development tools
+.vscode/
+.idea/
+*.sublime-*
+.atom/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ==========================================
+# MONITORING AND OBSERVABILITY
+# ==========================================
+
+# Logs and monitoring
+logs/
+*.log
+*.log.*
+monitoring/
+grafana_data/
+prometheus_data/
+
+# Metrics and reports
+metrics/
+reports/
+*.json.log
+*.csv.log
+
+# ==========================================
+# DEPLOYMENT AND INFRASTRUCTURE
+# ==========================================
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Helm
+charts/*/charts/
+charts/*/requirements.lock
+
+# ==========================================
+# LANGUAGE SPECIFIC
+# ==========================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js (if using frontend components)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Go (if using Go components)
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Rust (if using Rust components)
+target/
+Cargo.lock
+
+# ==========================================
+# SYSTEM GENERATED
+# ==========================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs* 

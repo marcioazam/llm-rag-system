@@ -10,7 +10,13 @@ Uso rápido:
 from graphdb.neo4j_store import Neo4jStore
 from graphdb.code_analyzer import CodeAnalyzer
 
-store = Neo4jStore(password="sua_senha")
+import os
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente
+load_dotenv()
+
+store = Neo4jStore(password=os.getenv("NEO4J_PASSWORD", ""))
 CodeAnalyzer(store).analyze_project("/caminho/para/projeto")
 store.close()
 ```

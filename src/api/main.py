@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any
 import os
 import shutil
 import sys
 from pathlib import Path
+import re
 
 # Adiciona o diretório pai ao path
 sys.path.append(str(Path(__file__).parent.parent.parent))
@@ -30,13 +31,31 @@ class AddDocumentsRequest(BaseModel):
     chunk_overlap: int = 50
 
 class QueryRequest(BaseModel):
-    question: str  # Mantém 'question' como campo principal
-    query: Optional[str] = None  # Compatibilidade com versão 2.0
-    k: Optional[int] = 5
-    system_prompt: Optional[str] = None
-    force_use_context: Optional[bool] = False
-    llm_only: Optional[bool] = False
-    use_hybrid: Optional[bool] = True
+    question: str = Field(..., min_length=1, max_length=2000, description="Pergunta principal")
+    query: Optional[str] = Field(None, max_length=2000, description="Compatibilidade com versão 2.0")
+    k: Optional[int] = Field(5, ge=1, le=50, description="Número de chunks a recuperar")
+    system_prompt: Optional[str] = Field(None, max_length=5000, description="Prompt do sistema")
+    force_use_context: Optional[bool] = Field(False, description="Forçar uso de contexto")
+    llm_only: Optional[bool] = Field(False, description="Usar apenas LLM")
+    use_hybrid: Optional[bool] = Field(True, description="Usar busca híbrida")
+    
+    @validator('question')
+    def validate_question(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Pergunta não pode estar vazia')
+        # Remover caracteres potencialmente perigosos
+        cleaned = re.sub(r'[<>"\']', '', v.strip())
+        if len(cleaned) < 3:
+            raise ValueError('Pergunta deve ter pelo menos 3 caracteres')
+        return cleaned
+    
+    @validator('system_prompt')
+    def validate_system_prompt(cls, v):
+        if v is not None:
+            # Limitar tamanho e remover caracteres perigosos
+            cleaned = re.sub(r'[<>]', '', v.strip())
+            return cleaned if cleaned else None
+        return v
 
 class IndexRequest(BaseModel):
     document_paths: List[str]
@@ -280,12 +299,39 @@ async def get_stats():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy", 
-        "hybrid_mode": "enabled",
-        "version": "2.0.0"
-    }
+    """Health check endpoint aprimorado"""
+    import time
+    from datetime import datetime
+    
+    try:
+        # Verificar se o pipeline está disponível
+        pipeline = get_pipeline()
+        
+        # Teste básico de funcionalidade
+        start_time = time.time()
+        test_response = pipeline.query_llm_only("health check", system_prompt="Respond with 'OK'")
+        response_time = (time.time() - start_time) * 1000
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "response_time_ms": round(response_time, 2),
+            "version": "2.0.0",
+            "hybrid_mode": "enabled",
+            "components": {
+                "api": "healthy",
+                "llm": "healthy" if test_response else "degraded",
+                "pipeline": "healthy"
+            }
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "version": "2.0.0",
+            "hybrid_mode": "enabled"
+        }
 
 @app.get("/query_stream")
 async def query_stream(q: str, k: int = 5):

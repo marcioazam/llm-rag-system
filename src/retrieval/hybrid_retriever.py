@@ -16,6 +16,7 @@ from ..embeddings.api_embedding_service import APIEmbeddingService
 from ..embeddings.sparse_vector_service import AdvancedSparseVectorService
 from ..retrieval.query_enhancer import QueryEnhancer
 from ..retrieval.reranker import Reranker
+from ..retrieval.hyde_enhancer import HyDEEnhancer, HyDEResult
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +189,9 @@ class HybridRetriever:
         self.query_enhancer = QueryEnhancer()
         self.reranker = Reranker()
         
+        # HyDE Enhancer
+        self.hyde_enhancer = HyDEEnhancer(config_path)
+        
         # Serviços de embedding
         self.dense_embedding_service = APIEmbeddingService()
         self.sparse_vector_service = AdvancedSparseVectorService(config_path)
@@ -203,7 +207,9 @@ class HybridRetriever:
             "dense_search_time": 0.0,
             "sparse_search_time": 0.0,
             "fusion_time": 0.0,
-            "rerank_time": 0.0
+            "rerank_time": 0.0,
+            "hyde_time": 0.0,
+            "hyde_success_count": 0
         }
     
     def _load_config(self, config_path: str) -> Dict:
@@ -220,6 +226,7 @@ class HybridRetriever:
         query: str, 
         limit: int = None,
         use_reranking: bool = True,
+        use_hyde: bool = None,
         strategy: str = "auto"
     ) -> List[HybridRetrievalResult]:
         """
@@ -229,19 +236,47 @@ class HybridRetriever:
             query: Query de busca
             limit: Número máximo de resultados
             use_reranking: Se deve usar reranking
+            use_hyde: Se deve usar HyDE (None=usar config)
             strategy: 'auto', 'dense_only', 'sparse_only', 'hybrid'
         """
         start_time = time.time()
         self.metrics["total_queries"] += 1
         
-        # Cache check
-        cache_key = f"{query}:{limit}:{use_reranking}:{strategy}"
+        # Verificar configuração HyDE
+        if use_hyde is None:
+            use_hyde = self.config.get("retrieval", {}).get("use_hyde", False)
+        
+        # Cache check (incluir HyDE no cache key)
+        cache_key = f"{query}:{limit}:{use_reranking}:{use_hyde}:{strategy}"
         if cache_key in self._retrieval_cache:
             self.metrics["cache_hits"] += 1
             return self._retrieval_cache[cache_key]
         
-        # Análise da query
-        query_analysis = self.query_analyzer.analyze_query(query)
+        # Aplicar HyDE se habilitado
+        hyde_result = None
+        enhanced_query = query
+        
+        if use_hyde and self.hyde_enhancer.hyde_config["enabled"]:
+            try:
+                hyde_start = time.time()
+                hyde_result = await self.hyde_enhancer.enhance_query(query)
+                
+                # Usar query aprimorada para busca
+                if hyde_result.confidence_score > 0.3:  # Threshold mínimo
+                    enhanced_query = " ".join(hyde_result.hypothetical_documents)
+                    self.metrics["hyde_success_count"] += 1
+                    logger.info(f"HyDE aplicado: confiança={hyde_result.confidence_score:.3f}")
+                else:
+                    logger.info("HyDE: baixa confiança, usando query original")
+                
+                self.metrics["hyde_time"] += time.time() - hyde_start
+                
+            except Exception as e:
+                logger.error(f"Erro no HyDE: {e}")
+                hyde_result = None
+        
+        # Análise da query (usar query enhanced se HyDE foi aplicado)
+        query_analysis = self.query_analyzer.analyze_query(enhanced_query)
         
         # Determinar estratégia de busca
         if strategy == "auto":
@@ -263,6 +298,13 @@ class HybridRetriever:
         
         # Converter para HybridRetrievalResult
         final_results = self._create_retrieval_results(results, query_analysis, strategy)
+        
+        # Adicionar metadados HyDE aos resultados
+        if hyde_result:
+            for result in final_results:
+                result.metadata["hyde_enhanced"] = True
+                result.metadata["hyde_confidence"] = hyde_result.confidence_score
+                result.metadata["hyde_docs_count"] = len(hyde_result.hypothetical_documents)
         
         # Cache resultado
         if len(self._retrieval_cache) < 1000:

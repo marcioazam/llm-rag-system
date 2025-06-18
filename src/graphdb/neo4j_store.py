@@ -25,11 +25,20 @@ class Neo4jStore:
 
     def __init__(
         self,
-        uri: str = "bolt://localhost:7687",
-        user: str = "neo4j",
-        password: str = "arrozefeijao13",
+        uri: str = None,
+        user: str = None,
+        password: str = None,
         database: str = "neo4j",  # Permite selecionar banco em Neo4j 4+
     ) -> None:
+        import os
+        
+        # Usar variáveis de ambiente como padrão
+        uri = uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        user = user or os.getenv("NEO4J_USER", "neo4j")
+        password = password or os.getenv("NEO4J_PASSWORD")
+        
+        if not password:
+            raise ValueError("Neo4j password must be provided via NEO4J_PASSWORD environment variable or password parameter")
         if GraphDatabase is None:
             raise ImportError(
                 "A dependência 'neo4j' não está instalada. Adicione-a em requirements.txt e execute `pip install -r requirements.txt`."

@@ -1,0 +1,84 @@
+version: 2
+
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "rag-maintainers"
+    assignees:
+      - "rag-maintainers"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    # Agrupar atualizações menores
+    groups:
+      minor-updates:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+      security-updates:
+        applies-to: security-updates
+    # Configurações específicas por dependência
+    ignore:
+      # Ignorar atualizações principais que podem quebrar compatibilidade
+      - dependency-name: "torch"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "transformers"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-major"]
+    # Rebase automático em conflitos
+    rebase-strategy: "auto"
+    
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rag-maintainers"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "ci/cd"
+    groups:
+      github-actions:
+        patterns:
+          - "actions/*"
+          - "github/super-linter"
+          
+  # Docker dependencies (se houver Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "11:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rag-maintainers"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "infrastructure" 
