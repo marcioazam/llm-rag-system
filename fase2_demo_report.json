@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-06-18T17:59:24.583366",
+  "duration": 60.905156,
+  "success_rate": 1.0,
+  "results": {
+    "prompt_system": {
+      "scenarios_tested": 2,
+      "avg_confidence": 0.9,
+      "results": [
+        {
+          "scenario": "\ud83d\udc1b Debugging de C\u00f3digo",
+          "task_type": "bugfix",
+          "confidence": 0.9,
+          "prompt_length": 1706
+        },
+        {
+          "scenario": "\ud83d\udc40 Code Review",
+          "task_type": "geral",
+          "confidence": 0.9,
+          "prompt_length": 1186
+        }
+      ]
+    },
+    "integration": {
+      "integrated": true,
+      "suggestions": {
+        "task_type": "geral",
+        "suggested_temperature": 0.5,
+        "reasoning_recommended": false,
+        "max_context_chunks": 5,
+        "system_enhancement": "Forne\u00e7a resposta clara e bem estruturada."
+      }
+    }
+  }
+}

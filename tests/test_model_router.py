@@ -272,9 +272,262 @@ class TestTaskType:
         assert "quick_snippet" in task_values
 
 
-# Testes de integração
-# Testes de integração removidos temporariamente para focar nos testes unitários
-# que cobrem a funcionalidade básica do ModelRouter
+class TestModelRouterEdgeCases:
+    """Testes para casos extremos e cenários não cobertos"""
+    
+    def setup_method(self):
+        """Setup para cada teste"""
+        with patch('src.models.model_router.ollama'):
+            self.router = ModelRouter()
+    
+    def test_detect_code_need_with_regex_patterns(self):
+        """Testa detecção de código usando padrões regex"""
+        regex_queries = [
+            "como implementar uma solução",
+            "exemplo de função",
+            "código para validação",
+            "função que calcula",
+            "classe para gerenciar",
+            "script para automatizar"
+        ]
+        
+        for query in regex_queries:
+            assert self.router.detect_code_need(query) == True
+    
+    def test_detect_code_need_empty_inputs(self):
+        """Testa detecção com entradas vazias"""
+        assert self.router.detect_code_need("") == False
+        assert self.router.detect_code_need("", "") == False
+        assert self.router.detect_code_need("   ", "   ") == False
+    
+    def test_detect_code_need_case_insensitive(self):
+        """Testa detecção case-insensitive"""
+        queries = [
+            "PYTHON código",
+            "Função JAVASCRIPT",
+            "IMPLEMENTAR algoritmo",
+            "Código PARA análise"
+        ]
+        
+        for query in queries:
+            assert self.router.detect_code_need(query) == True
+    
+    @patch('src.models.model_router.ollama')
+    def test_generate_with_model_with_system_prompt(self, mock_ollama):
+        """Testa geração com system prompt"""
+        mock_ollama.chat.return_value = {
+            'message': {'content': 'Resposta com system prompt'}
+        }
+        
+        response = self.router.generate_with_model(
+            "query de teste", 
+            "general",
+            system_prompt="Você é um assistente especializado"
+        )
+        
+        assert response == "Resposta com system prompt"
+        # Verifica se system prompt foi incluído nas mensagens
+        call_args = mock_ollama.chat.call_args
+        messages = call_args[1]['messages']
+        assert len(messages) == 2
+        assert messages[0]['role'] == 'system'
+        assert messages[1]['role'] == 'user'
+    
+    @patch('src.models.model_router.ollama')
+    def test_generate_with_model_custom_temperature(self, mock_ollama):
+        """Testa geração com temperatura customizada"""
+        mock_ollama.chat.return_value = {
+            'message': {'content': 'Resposta com temperatura'}
+        }
+        
+        response = self.router.generate_with_model(
+            "query de teste", 
+            "general",
+            temperature=0.9
+        )
+        
+        # Verifica se temperatura foi passada corretamente
+        call_args = mock_ollama.chat.call_args
+        options = call_args[1]['options']
+        assert options['temperature'] == 0.9
+    
+    def test_generate_with_model_unavailable_model(self):
+        """Testa fallback quando modelo não está disponível"""
+        self.router.available_models = {'general'}
+        
+        with patch.object(self.router, 'generate_with_model', wraps=self.router.generate_with_model) as mock_generate:
+            with patch('src.models.model_router.ollama') as mock_ollama:
+                mock_ollama.chat.return_value = {'message': {'content': 'Fallback response'}}
+                
+                response = self.router.generate_with_model("test", "unavailable_model")
+                
+                # Verifica se foi usado o modelo general como fallback
+                call_args = mock_ollama.chat.call_args
+                model_used = call_args[1]['model']
+                assert model_used == self.router.models['general']['name']
+    
+    def test_generate_hybrid_response_no_code_markers(self):
+        """Testa resposta híbrida sem marcadores de código"""
+        with patch.object(self.router, 'generate_with_model') as mock_generate:
+            mock_generate.return_value = "Resposta sem código"
+            
+            response = self.router.generate_hybrid_response(
+                "criar função de ordenação",
+                "contexto",
+                ["doc1", "doc2"]
+            )
+            
+            assert response == "Resposta sem código"
+            assert mock_generate.call_count == 1
+    
+    def test_generate_hybrid_response_multiple_code_markers(self):
+        """Testa resposta híbrida com múltiplos marcadores"""
+        with patch.object(self.router, 'generate_with_model') as mock_generate:
+            mock_generate.side_effect = [
+                "Explicação [CÓDIGO: função sort] e [CÓDIGO: função filter]",
+                "def sort_func(): pass",
+                "def filter_func(): pass"
+            ]
+            
+            response = self.router.generate_hybrid_response(
+                "criar funções",
+                "contexto",
+                ["doc1"]
+            )
+            
+            assert "```python" in response
+            assert "def sort_func" in response
+            assert "def filter_func" in response
+            assert mock_generate.call_count == 3
+    
+    def test_get_model_status_structure(self):
+        """Testa estrutura completa do status dos modelos"""
+        status = self.router.get_model_status()
+        
+        # Verifica estrutura
+        required_keys = ['available', 'total_models', 'models']
+        for key in required_keys:
+            assert key in status
+        
+        # Verifica tipos
+        assert isinstance(status['available'], list)
+        assert isinstance(status['total_models'], int)
+        assert isinstance(status['models'], dict)
+        
+        # Verifica conteúdo
+        assert status['total_models'] > 0
+        assert len(status['models']) == status['total_models']
+
+
+class TestAdvancedModelRouterEdgeCases:
+    """Testes para casos extremos do AdvancedModelRouter"""
+    
+    def setup_method(self):
+        """Setup para cada teste"""
+        with patch('src.models.model_router.ollama'):
+            self.router = AdvancedModelRouter()
+    
+    def test_detect_tasks_multiple_indicators(self):
+        """Testa detecção de múltiplas tarefas em uma query"""
+        complex_query = "debug this sql query and create documentation"
+        tasks = self.router.detect_tasks(complex_query)
+        
+        task_values = [task.value for task in tasks]
+        assert "general_explanation" in task_values
+        assert "sql_query" in task_values
+        assert "debugging" in task_values
+        assert "documentation" in task_values
+    
+    def test_detect_tasks_with_context(self):
+        """Testa detecção de tarefas considerando contexto"""
+        query = "explique isso"
+        context = "SELECT * FROM users WHERE active = 1"
+        tasks = self.router.detect_tasks(query, context)
+        
+        task_values = [task.value for task in tasks]
+        assert "sql_query" in task_values
+    
+    def test_select_best_model_no_available_models(self):
+        """Testa seleção quando nenhum modelo está disponível"""
+        self.router.available_models = set()
+        model = self.router.select_best_model(TaskType.CODE_GENERATION)
+        assert model is None
+    
+    def test_select_best_model_priority_ordering(self):
+        """Testa se a prioridade é respeitada na seleção"""
+        # Simula múltiplos modelos disponíveis para a mesma tarefa
+        self.router.available_models = {'general', 'mistral'}
+        
+        # Ambos podem fazer GENERAL_EXPLANATION, mas general tem prioridade 1
+        model = self.router.select_best_model(TaskType.GENERAL_EXPLANATION)
+        assert model == 'general'  # prioridade menor = melhor
+    
+    @patch.object(AdvancedModelRouter, 'generate_with_model')
+    def test_generate_advanced_response_sql_processing(self, mock_generate):
+        """Testa processamento de marcadores SQL"""
+        mock_generate.side_effect = [
+            "Explicação [SQL: buscar usuários ativos]",
+            "SELECT * FROM users WHERE active = 1"
+        ]
+        
+        self.router.available_models = {'general', 'sql'}
+        
+        result = self.router.generate_advanced_response(
+            "buscar usuários",
+            "contexto",
+            ["doc1"]
+        )
+        
+        assert "```sql" in result['answer']
+        assert "SELECT * FROM users" in result['answer']
+        assert len(result['models_used']) >= 1
+        assert 'sql_query' in result['tasks_performed']
+    
+    @patch.object(AdvancedModelRouter, 'generate_with_model')
+    def test_generate_advanced_response_architecture_task(self, mock_generate):
+        """Testa resposta para tarefa de arquitetura"""
+        mock_generate.return_value = "Design de microserviços"
+        
+        self.router.available_models = {'general', 'mistral'}
+        
+        result = self.router.generate_advanced_response(
+            "design a microservices architecture",
+            "contexto",
+            ["doc1"]
+        )
+        
+        assert 'architecture_design' in result['tasks_performed']
+        assert result['answer'] == "Design de microserviços"
+        # Deve usar mistral para arquitetura se disponível
+        assert any('mistral' in model for model in result['models_used'])
+    
+    def test_generate_advanced_response_result_structure(self):
+        """Testa estrutura do resultado da resposta avançada"""
+        with patch.object(self.router, 'generate_with_model') as mock_generate:
+            mock_generate.return_value = "Resposta teste"
+            
+            result = self.router.generate_advanced_response(
+                "pergunta teste",
+                "contexto",
+                ["doc1"]
+            )
+            
+            # Verifica estrutura obrigatória
+            required_keys = ['answer', 'models_used', 'tasks_performed', 'sections']
+            for key in required_keys:
+                assert key in result
+            
+            # Verifica tipos
+            assert isinstance(result['answer'], str)
+            assert isinstance(result['models_used'], list)
+            assert isinstance(result['tasks_performed'], list)
+            assert isinstance(result['sections'], dict)
+            
+            # Verifica conteúdo mínimo
+            assert len(result['answer']) > 0
+            assert len(result['models_used']) > 0
+            assert 'general_explanation' in result['tasks_performed']
+            assert 'main' in result['sections']
 
 
 if __name__ == "__main__":

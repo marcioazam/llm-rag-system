@@ -12,7 +12,7 @@ from qdrant_client import QdrantClient, AsyncQdrantClient
 from qdrant_client.http import models
 from qdrant_client.http.models import (
     Distance, VectorParams, SparseVectorParams,
-    PointStruct, SearchRequest, QueryRequest,
+    PointStruct, SearchRequest,
     SparseVector as QdrantSparseVector,
     NamedVector, NamedSparseVector
 )

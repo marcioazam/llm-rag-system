@@ -57,7 +57,11 @@ class APIEmbeddingService:
     Suporta múltiplos provedores com fallback automático.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        # FASE 1: Configuração padrão se não fornecida
+        if config is None:
+            config = self._get_default_config()
+            
         self.config = config
         self.providers_config = config.get("embeddings", {}).get("providers", {})
         self.primary_provider = config.get("embeddings", {}).get("primary_provider", "openai")
@@ -76,7 +80,7 @@ class APIEmbeddingService:
         retry_strategy = Retry(
             total=3,
             status_forcelist=[429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE", "POST"],
+            allowed_methods=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE", "POST"],
             backoff_factor=1
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -94,6 +98,35 @@ class APIEmbeddingService:
         }
         
         logger.info(f"APIEmbeddingService inicializado com provedor primário: {self.primary_provider}")
+
+    def _get_default_config(self) -> Dict[str, Any]:
+        """FASE 1: Retorna configuração padrão para funcionamento básico"""
+        return {
+            "embeddings": {
+                "primary_provider": "openai",
+                "providers": {
+                    "openai": {
+                        "models": {
+                            "text_embedding_ada_002": {
+                                "cost_per_1k_tokens": 0.0001,
+                                "max_tokens": 8191,
+                                "dimensions": 1536
+                            }
+                        }
+                    }
+                }
+            },
+            "optimization": {
+                "caching": {
+                    "cache_embeddings": True,
+                    "ttl_seconds": 3600
+                },
+                "rate_limiting": {
+                    "enabled": True,
+                    "requests_per_minute": 100
+                }
+            }
+        }
 
     def _get_cache_key(self, text: str, model: str, provider: str) -> str:
         """Gera chave do cache"""

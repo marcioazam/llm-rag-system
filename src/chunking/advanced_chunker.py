@@ -14,6 +14,7 @@ except ImportError:  # pragma: no cover
 
 from ..preprocessing.intelligent_preprocessor import IntelligentPreprocessor
 from .recursive_chunker import RecursiveChunker
+from .semantic_chunker_enhanced import EnhancedSemanticChunker  # FASE 1: Enhanced chunker
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +36,19 @@ class AdvancedChunker:
             logger.debug("IntelligentPreprocessor indisponível: %s", exc)
 
         self.recursive = RecursiveChunker(chunk_size=max_chunk_size, chunk_overlap=chunk_overlap)
+        
+        # FASE 1: Enhanced semantic chunker como padrão
+        self.enhanced_semantic = EnhancedSemanticChunker(
+            similarity_threshold=0.6,
+            min_chunk_size=50,
+            max_chunk_size=max_chunk_size,
+            language="portuguese"
+        )
 
         # Mapeia nomes → métodos
         self.strategies = {
-            "semantic": self.semantic_chunk,
+            "semantic": self.enhanced_semantic_chunk,  # FASE 1: Usar enhanced
+            "semantic_basic": self.semantic_chunk,  # Manter básico para compatibilidade
             "structural": self.structural_chunk,
             "sliding_window": self.sliding_window_chunk,
             "recursive": self.recursive_chunk,
@@ -66,11 +76,40 @@ class AdvancedChunker:
         refined = []
         for chunk in structural_chunks:
             if len(chunk["content"]) > self.max_chunk_size:
-                refined.extend(self.semantic_chunk(chunk))
+                refined.extend(self.enhanced_semantic_chunk(chunk))  # FASE 1: Usar enhanced
             else:
                 refined.append(chunk)
         enriched = self._enrich_with_entities(refined, document)
         return self._add_contextual_overlap(enriched)
+    
+    # FASE 1: Enhanced semantic chunking (novo método padrão)
+    def enhanced_semantic_chunk(self, document: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Chunking semântico enhanced com NLTK e centroides"""
+        try:
+            # Usar o enhanced chunker
+            chunks = self.enhanced_semantic.chunk(
+                text=document["content"],
+                metadata=document.get("metadata", {})
+            )
+            
+            # Converter para formato compatível
+            result = []
+            for chunk in chunks:
+                result.append({
+                    "content": chunk.content,
+                    "metadata": {
+                        **document.get("metadata", {}),
+                        **chunk.metadata,
+                        "chunk_method": "enhanced_semantic"
+                    }
+                })
+            
+            return result
+            
+        except Exception as e:
+            logger.warning(f"Enhanced semantic chunking falhou: {e}, usando fallback")
+            # Fallback para semantic básico
+            return self.semantic_chunk(document)
 
     # ------------------------
     def semantic_chunk(self, document: Dict[str, Any]) -> List[Dict[str, Any]]:

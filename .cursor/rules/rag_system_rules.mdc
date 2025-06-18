@@ -1,4 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
 # 🚀 CURSOR IDE RULES FOR WORLD-CLASS RAG SYSTEM
+
+## **CREATE .MD ARCHIVE AND DOCS IN ~\Docs**
 
 ## 📋 **CORE ARCHITECTURE RULES**
 

@@ -1,0 +1,305 @@
+# Configuração de Pre-commit Hooks
+# Para instalar: pre-commit install
+# Para executar manualmente: pre-commit run --all-files
+
+repos:
+  # ============================================================================
+  # HOOKS BÁSICOS
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      # Verificações básicas de arquivos
+      - id: trailing-whitespace        # Remove espaços em branco no final
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer          # Garante nova linha no final do arquivo
+      - id: check-yaml                 # Valida sintaxe YAML
+      - id: check-json                 # Valida sintaxe JSON
+      - id: check-toml                 # Valida sintaxe TOML
+      - id: check-xml                  # Valida sintaxe XML
+      
+      # Verificações de merge e commits
+      - id: check-merge-conflict       # Verifica marcadores de merge conflict
+      - id: check-case-conflict        # Verifica conflitos de case em nomes
+      - id: check-symlinks            # Verifica symlinks quebrados
+      
+      # Verificações de Python
+      - id: check-ast                  # Verifica sintaxe Python
+      - id: check-builtin-literals     # Usa literais built-in
+      - id: check-docstring-first      # Docstring deve ser primeira declaração
+      - id: debug-statements           # Remove declarações de debug
+      - id: name-tests-test           # Nomes de arquivos de teste
+        args: [--pytest-test-first]
+      
+      # Verificações de segurança
+      - id: detect-private-key        # Detecta chaves privadas
+      - id: check-executables-have-shebangs # Executáveis devem ter shebang
+      
+      # Formatação
+      - id: mixed-line-ending         # Normaliza line endings
+      - id: fix-byte-order-marker     # Remove BOM
+
+  # ============================================================================
+  # FORMATAÇÃO DE CÓDIGO
+  # ============================================================================
+  
+  # Black - Formatador de código Python
+  - repo: https://github.com/psf/black
+    rev: 23.7.0
+    hooks:
+      - id: black
+        name: black
+        description: "Formatar código Python com Black"
+        language_version: python3
+        args: [--line-length=88]
+        types: [python]
+
+  # isort - Organização de imports
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: isort
+        description: "Organizar imports Python"
+        args: [--profile=black, --line-length=88]
+        types: [python]
+
+  # autoflake - Remove imports não utilizados
+  - repo: https://github.com/pycqa/autoflake
+    rev: v2.2.0
+    hooks:
+      - id: autoflake
+        name: autoflake
+        description: "Remove imports e variáveis não utilizados"
+        args:
+          - --in-place
+          - --remove-all-unused-imports
+          - --remove-unused-variables
+          - --remove-duplicate-keys
+          - --expand-star-imports
+        types: [python]
+
+  # ============================================================================
+  # LINTING E QUALIDADE
+  # ============================================================================
+  
+  # flake8 - Linting básico
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        name: flake8
+        description: "Verificar qualidade do código com flake8"
+        args:
+          - --max-line-length=88
+          - --extend-ignore=E203,W503,E501
+          - --max-complexity=10
+        types: [python]
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-import-order
+          - flake8-bugbear
+          - flake8-comprehensions
+          - flake8-simplify
+          - flake8-pytest-style
+
+  # pylint - Linting avançado
+  - repo: https://github.com/pycqa/pylint
+    rev: v2.17.5
+    hooks:
+      - id: pylint
+        name: pylint
+        description: "Análise estática avançada com pylint"
+        args:
+          - --disable=C0114,C0115,C0116  # Disable missing docstring warnings
+          - --max-line-length=88
+          - --good-names=i,j,k,ex,Run,_,id,db
+        types: [python]
+        exclude: ^(tests/|migrations/)
+
+  # ============================================================================
+  # VERIFICAÇÃO DE TIPOS
+  # ============================================================================
+  
+  # mypy - Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        name: mypy
+        description: "Verificação de tipos com mypy"
+        args:
+          - --ignore-missing-imports
+          - --disallow-untyped-defs
+          - --no-implicit-optional
+        types: [python]
+        additional_dependencies:
+          - types-requests
+          - types-PyYAML
+          - types-python-dateutil
+        exclude: ^(tests/|migrations/|scripts/)
+
+  # ============================================================================
+  # SEGURANÇA
+  # ============================================================================
+  
+  # bandit - Verificação de segurança
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        name: bandit
+        description: "Verificar vulnerabilidades de segurança"
+        args:
+          - --skip=B101,B601  # Skip assert_used and shell_injection_process
+          - --exclude=tests/
+        types: [python]
+
+  # safety - Verificação de dependências vulneráveis
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.2
+    hooks:
+      - id: python-safety-dependencies-check
+        name: safety
+        description: "Verificar dependências vulneráveis"
+        files: requirements.*\.txt$
+
+  # ============================================================================
+  # TESTES
+  # ============================================================================
+  
+  # pytest - Executar testes rápidos
+  - repo: local
+    hooks:
+      - id: pytest-fast
+        name: pytest-fast
+        description: "Executar testes rápidos"
+        entry: pytest
+        language: system
+        args: [--fast, -x, --tb=short]
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+
+  # ============================================================================
+  # DOCUMENTAÇÃO
+  # ============================================================================
+  
+  # Verificação de docstrings
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        name: pydocstyle
+        description: "Verificar estilo de docstrings"
+        args:
+          - --convention=google
+          - --add-ignore=D100,D101,D102,D103,D104,D105,D107
+        types: [python]
+        exclude: ^(tests/|migrations/)
+
+  # ============================================================================
+  # ARQUIVOS ESPECÍFICOS
+  # ============================================================================
+  
+  # Verificação de requirements.txt
+  - repo: https://github.com/pycqa/pip-audit
+    rev: v2.6.1
+    hooks:
+      - id: pip-audit
+        name: pip-audit
+        description: "Auditoria de dependências"
+        args: [--desc, --disable-pip]
+        files: requirements.*\.txt$
+
+  # Verificação de Dockerfile
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        name: hadolint
+        description: "Lint para Dockerfile"
+        types: [dockerfile]
+
+  # ============================================================================
+  # COMMITS CONVENCIONAIS
+  # ============================================================================
+  
+  # Conventional commits
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v2.4.0
+    hooks:
+      - id: conventional-pre-commit
+        name: conventional-commits
+        description: "Verificar formato de commit convencional"
+        stages: [commit-msg]
+        args: [optional-scope]
+
+  # ============================================================================
+  # NOTEBOOKS JUPYTER
+  # ============================================================================
+  
+  # Limpeza de notebooks
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.7.0
+    hooks:
+      - id: nbqa-black
+        name: nbqa-black
+        description: "Formatar notebooks com black"
+        args: [--line-length=88]
+      - id: nbqa-isort
+        name: nbqa-isort
+        description: "Organizar imports em notebooks"
+        args: [--profile=black]
+      - id: nbqa-flake8
+        name: nbqa-flake8
+        description: "Lint notebooks com flake8"
+        args: [--max-line-length=88, --extend-ignore=E203,W503]
+
+  # Limpar outputs de notebooks
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.6.1
+    hooks:
+      - id: nbstripout
+        name: nbstripout
+        description: "Remover outputs de notebooks"
+
+# ============================================================================
+# CONFIGURAÇÃO GLOBAL
+# ============================================================================
+
+# Configurações globais
+default_stages: [commit]
+fail_fast: false
+default_language_version:
+  python: python3
+
+# Exclusões globais
+exclude: |
+  (?x)^(
+    migrations/.*|
+    \.venv/.*|
+    venv/.*|
+    node_modules/.*|
+    \.git/.*|
+    __pycache__/.*|
+    \.pytest_cache/.*|
+    htmlcov/.*|
+    \.coverage.*|
+    build/.*|
+    dist/.*|
+    \.egg-info/.*
+  )$
+
+# Configuração de CI
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+    
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false

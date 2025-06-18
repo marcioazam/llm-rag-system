@@ -39,6 +39,14 @@ class QueryRequest(BaseModel):
     llm_only: Optional[bool] = Field(False, description="Usar apenas LLM")
     use_hybrid: Optional[bool] = Field(True, description="Usar busca híbrida")
     
+    # Parâmetros específicos para Cursor IDE
+    context: Optional[str] = Field(None, description="Contexto do código atual (Cursor)")
+    file_type: Optional[str] = Field(None, description="Tipo de arquivo (.py, .js, etc)")
+    project_context: Optional[str] = Field(None, description="Contexto do projeto (Cursor)")
+    quick_mode: Optional[bool] = Field(False, description="Modo rápido para Cursor")
+    allow_hybrid: Optional[bool] = Field(True, description="Permitir híbrido (Cursor)")
+    max_response_time: Optional[int] = Field(15, description="Timeout máximo em segundos")
+    
     @validator('question')
     def validate_question(cls, v):
         if not v or not v.strip():
@@ -89,40 +97,89 @@ async def root():
 # Query endpoints
 @app.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest):
-    """Executar query no sistema RAG com suporte a modo híbrido"""
+    """Executar query no sistema RAG com suporte a modo híbrido e otimizações para Cursor"""
+    import time
+    start_time = time.time()
+    
     try:
         # Compatibilidade: usar 'query' se 'question' não estiver presente
         question = request.question or request.query
         if not question:
             raise HTTPException(status_code=400, detail="Either 'question' or 'query' must be provided")
         
+        # 🎯 OTIMIZAÇÃO CURSOR: Construir system prompt otimizado
+        system_prompt = request.system_prompt
+        if request.context or request.file_type or request.project_context:
+            # Cursor está enviando contexto - otimizar prompt
+            cursor_prompt = """Você é um assistente de código especializado para IDEs.
+Forneça respostas CONCISAS, PRÁTICAS e DIRETAS.
+Foque em:
+- Exemplos de código funcionais
+- Soluções implementáveis
+- Explicações claras e breves
+- Contexto do projeto atual"""
+            
+            if request.file_type:
+                if request.file_type in [".py", ".python"]:
+                    cursor_prompt += "\nFoque em Python: PEP8, type hints, docstrings."
+                elif request.file_type in [".js", ".ts", ".jsx", ".tsx"]:
+                    cursor_prompt += "\nFoque em JavaScript/TypeScript: ES6+, async/await, tipos."
+                elif request.file_type in [".java"]:
+                    cursor_prompt += "\nFoque em Java: OOP, Spring Boot, boas práticas."
+                elif request.file_type in [".cs"]:
+                    cursor_prompt += "\nFoque em C#: .NET, LINQ, async patterns."
+            
+            if request.project_context:
+                cursor_prompt += f"\nContexto do projeto: {request.project_context[:200]}"
+            
+            if request.context:
+                cursor_prompt += f"\nCódigo atual: {request.context[:500]}"
+            
+            system_prompt = cursor_prompt
+        
+        # 🎯 OTIMIZAÇÃO CURSOR: Ajustar K baseado no modo
+        k = request.k
+        if request.quick_mode:
+            k = min(3, k)  # Modo rápido = menos chunks
+        
+        # 🎯 OTIMIZAÇÃO CURSOR: Decidir estratégia baseada na complexidade
+        use_hybrid = request.use_hybrid
+        if request.quick_mode and not request.allow_hybrid:
+            use_hybrid = False  # Força modo rápido
+        
+        # Executar query baseado no tipo
         if request.llm_only:
-            # Usar apenas LLM sem buscar contexto
             result = get_pipeline().query_llm_only(
                 question=question,
-                system_prompt=request.system_prompt
+                system_prompt=system_prompt
             )
-        elif hasattr(get_pipeline(), 'query') and request.use_hybrid:
-            # Usar modo híbrido se disponível
+        elif hasattr(get_pipeline(), 'query') and use_hybrid:
             result = get_pipeline().query(
                 query_text=question,
-                k=request.k,
-                use_hybrid=request.use_hybrid
+                k=k,
+                use_hybrid=use_hybrid
             )
-            # Converter formato de resposta se necessário
+            # Converter formato se necessário
             if isinstance(result, dict) and 'sources' in result and isinstance(result['sources'], list):
                 if result['sources'] and isinstance(result['sources'][0], str):
                     result['sources'] = [{"content": source, "source": "hybrid_search"} for source in result['sources']]
         else:
-            # Usar RAG tradicional
             result = get_pipeline().query(
                 question=question,
-                k=request.k,
-                system_prompt=request.system_prompt,
+                k=k,
+                system_prompt=system_prompt,
                 force_use_context=request.force_use_context
             )
         
+        # 🎯 OTIMIZAÇÃO CURSOR: Adicionar métricas de performance
+        processing_time = time.time() - start_time
+        if isinstance(result, dict):
+            result["processing_time"] = round(processing_time, 3)
+            result["mode"] = "cursor_optimized" if (request.context or request.quick_mode) else "standard"
+            result["k_used"] = k
+        
         return result
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -362,3 +419,5 @@ async def coverage_options():
         return {"coverage": values}
     except Exception as exc:  # pylint: disable=broad-except
         return JSONResponse(status_code=500, content={"error": str(exc)})
+
+# Sistema unificado - Cursor usa endpoint /query com parâmetros específicos

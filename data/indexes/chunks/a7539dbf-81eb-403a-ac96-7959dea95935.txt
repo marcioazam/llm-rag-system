@@ -1,1 +1,0 @@
-Para criar um sistema web robusto, é importante considerar: 1. Arquitetura bem definida (MVC, microserviços, etc) 2. Segurança (autenticação, autorização, HTTPS) 3. Performance (cache, otimização de queries) 4. Escalabilidade (horizontal e vertical) 5. Monitoramento e logs 6. Testes automatizados 7. CI CD pipeline

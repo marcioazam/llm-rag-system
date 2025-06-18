@@ -1,121 +1,65 @@
-# ===========================================
-# CONFIGURAÇÃO DE API KEYS - LLM PROVIDERS
-# ===========================================
+# =================================================================
+# TEMPLATE .ENV - SISTEMA RAG AVANÇADO 100% APIs EXTERNAS
+# Copie este arquivo para .env e configure suas API keys
+# =================================================================
 
-# OpenAI Configuration
-OPENAI_API_KEY=sk-your-openai-api-key-here
-OPENAI_ORG_ID=your-organization-id-here  # Opcional
+# ✅ OBRIGATÓRIO: Configure pelo menos uma destas APIs
+OPENAI_API_KEY=sk-your-openai-key-here
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
+GOOGLE_API_KEY=your-google-key-here
+DEEPSEEK_API_KEY=your-deepseek-key-here
 
-# Anthropic Configuration
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key-here
+# 🔧 VECTOR DATABASE (Qdrant)
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+QDRANT_API_KEY=
 
-# Google AI Configuration
-GOOGLE_API_KEY=your-google-ai-api-key-here
-
-# DeepSeek Configuration
-DEEPSEEK_API_KEY=sk-your-deepseek-api-key-here
-
-# ===========================================
-# DATABASE CONFIGURATIONS
-# ===========================================
-
-# Neo4j Configuration (se usar)
+# 🕸️ GRAPH DATABASE (Neo4j) - Opcional para GraphRAG
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
-NEO4J_PASSWORD=your-neo4j-password
+NEO4J_PASSWORD=sua-senha-neo4j
 
-# Qdrant Configuration (se usar remoto)
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=your-qdrant-api-key  # Opcional para instância local
+# 🚀 CACHE REDIS (Opcional) - Para múltiplas instâncias
+REDIS_URL=redis://localhost:6379
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_MAX_CONNECTIONS=10
+REDIS_SOCKET_TIMEOUT=5.0
+REDIS_CONNECT_TIMEOUT=5.0
+REDIS_RETRY_ON_TIMEOUT=true
+REDIS_HEALTH_CHECK_INTERVAL=30
 
-# ===========================================
-# APPLICATION SETTINGS
-# ===========================================
+# 💾 CONFIGURAÇÕES DE CACHE
+CACHE_ENABLE_REDIS=false
+CACHE_DB_PATH=storage/rag_cache.db
+CACHE_MAX_MEMORY_ENTRIES=2000
 
-# Debug and Development
-DEBUG_MODE=false
-VERBOSE_LOGGING=false
-MOCK_API_CALLS=false  # Para desenvolvimento sem gastar créditos
-
-# Cost Control
-DAILY_BUDGET_USD=10.00
-REQUEST_COST_LIMIT_USD=0.50
-COST_ALERT_THRESHOLD=0.80
-
-# Rate Limiting
-REQUESTS_PER_MINUTE=100
-REQUESTS_PER_HOUR=1000
-BURST_LIMIT=20
-
-# Cache Settings
-CACHE_ENABLED=true
-CACHE_TTL_SECONDS=3600
-MAX_CACHE_SIZE=1000
-
-# ===========================================
-# MONITORING AND LOGS
-# ===========================================
-
-# Prometheus Monitoring
-PROMETHEUS_ENABLED=true
+# 📊 MONITORAMENTO
 PROMETHEUS_PORT=8001
-
-# Logging Configuration
 LOG_LEVEL=INFO
-LOG_TO_FILE=true
-LOG_REQUESTS=true
-LOG_RESPONSES=false  # Manter false por privacidade
-TRACK_COSTS=true
-TRACK_LATENCY=true
 
-# ===========================================
-# SECURITY SETTINGS
-# ===========================================
+# 🛠️ DESENVOLVIMENTO
+ENVIRONMENT=development
+DEBUG=false
+CACHE_DISABLED=false
 
-# API Security
-API_HOST=0.0.0.0
-API_PORT=8000
-CORS_ORIGINS=*  # Mudança para domínios específicos em produção
+# 💰 CONTROLE DE CUSTOS
+DAILY_BUDGET_USD=50.0
+COST_TRACKING=true
+ALERT_THRESHOLD=0.8
 
-# Rate Limiting
-RATE_LIMIT_ENABLED=true
-
-# ===========================================
-# PROVIDER PREFERENCES
-# ===========================================
-
-# Primary providers for different tasks
-PRIMARY_EMBEDDING_PROVIDER=openai
-PRIMARY_LLM_PROVIDER=openai
-FALLBACK_LLM_PROVIDER=anthropic
-
-# Model routing strategy
-# Options: cost_optimized, performance_optimized, balanced, cost_performance_optimized
-ROUTING_STRATEGY=cost_performance_optimized
-
-# Task-specific model preferences
-CODE_GENERATION_MODEL=openai.gpt4o_mini
-DOCUMENT_ANALYSIS_MODEL=anthropic.claude_3_5_sonnet
-QUICK_QUERIES_MODEL=openai.gpt35_turbo
-COMPLEX_ANALYSIS_MODEL=openai.gpt4o
-
-# ===========================================
-# DEVELOPMENT AND TESTING
-# ===========================================
-
-# Testing Configuration
-USE_SMALLER_MODELS_IN_TEST=true
-REDUCED_CONTEXT_IN_TEST=true
-MOCK_EXPENSIVE_CALLS_IN_TEST=true
-COST_SIMULATION_ENABLED=true
-
-# ===========================================
-# OPTIONAL FEATURES
-# ===========================================
-
-# Features that can be enabled/disabled
-ENABLE_CACHING=true
-ENABLE_BATCHING=true
-ENABLE_MONITORING=true
-ENABLE_COST_TRACKING=true
-ENABLE_GRAPH_STORE=false  # Set to true if using Neo4j 
+# =================================================================
+# INSTRUÇÕES:
+# 1. Copie este arquivo para .env: copy config\env_example.txt .env
+# 2. Substitua "your-xxx-key-here" pelas suas chaves reais
+# 3. Configure pelo menos OPENAI_API_KEY para começar
+# 4. Execute: python check_system_status.py para validar
+#
+# 🚀 PARA HABILITAR REDIS (OPCIONAL):
+# 5. Instale Redis: pip install redis
+# 6. Inicie servidor: redis-server
+# 7. Configure: CACHE_ENABLE_REDIS=true
+# 8. Teste: python test_cache_com_redis.py
+# ================================================================= 

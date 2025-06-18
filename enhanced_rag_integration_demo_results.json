@@ -1,0 +1,40 @@
+{
+  "integration_stats": {
+    "total_queries": 4,
+    "enhanced_used": 0,
+    "fallback_used": 4,
+    "avg_relevance_improvement": 0.0,
+    "enhanced_usage_rate": 0.0,
+    "fallback_rate": 1.0
+  },
+  "sample_results": [
+    {
+      "query": "Como implementar Corrective RAG com T5 evaluator?",
+      "strategy": "traditional",
+      "relevance_score": 0.65,
+      "correction_applied": false
+    },
+    {
+      "query": "Qual a diferença entre RAG e fine-tuning?",
+      "strategy": "traditional",
+      "relevance_score": 0.65,
+      "correction_applied": false
+    },
+    {
+      "query": "Como otimizar performance de embeddings em sistemas RAG?",
+      "strategy": "traditional",
+      "relevance_score": 0.65,
+      "correction_applied": false
+    },
+    {
+      "query": "Implementar cache distribuído para RAG systems com Redis",
+      "strategy": "traditional",
+      "relevance_score": 0.65,
+      "correction_applied": false
+    }
+  ],
+  "fallback_test": {
+    "strategy": "traditional",
+    "relevance_score": 0.65
+  }
+}
