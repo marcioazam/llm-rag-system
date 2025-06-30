@@ -1,0 +1,413 @@
+# Release Management Workflow
+# Automatiza criação de releases, tags e changelogs
+
+name: 🚀 Release Management
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - 'Docs/**'
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Tipo de release'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      pre_release:
+        description: 'Pre-release?'
+        required: false
+        default: false
+        type: boolean
+      custom_version:
+        description: 'Versão customizada (opcional)'
+        required: false
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Verificar se precisa de release
+  check-release:
+    name: 🔍 Check Release Need
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+      changes: ${{ steps.check.outputs.changes }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔍 Check for changes since last release
+      id: check
+      run: |
+        # Obter última tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        echo "Last tag: $LAST_TAG"
+        
+        # Verificar se há commits desde a última tag
+        COMMITS_SINCE=$(git rev-list ${LAST_TAG}..HEAD --count)
+        echo "Commits since last tag: $COMMITS_SINCE"
+        
+        # Obter tipos de mudanças
+        FEAT_COUNT=$(git log ${LAST_TAG}..HEAD --oneline | grep -c "feat:" || echo "0")
+        FIX_COUNT=$(git log ${LAST_TAG}..HEAD --oneline | grep -c "fix:" || echo "0")
+        BREAKING_COUNT=$(git log ${LAST_TAG}..HEAD --oneline | grep -c "BREAKING CHANGE" || echo "0")
+        
+        echo "Features: $FEAT_COUNT, Fixes: $FIX_COUNT, Breaking: $BREAKING_COUNT"
+        
+        # Determinar tipo de release
+        if [ "$BREAKING_COUNT" -gt 0 ]; then
+          RELEASE_TYPE="major"
+        elif [ "$FEAT_COUNT" -gt 0 ]; then
+          RELEASE_TYPE="minor"
+        elif [ "$FIX_COUNT" -gt 0 ]; then
+          RELEASE_TYPE="patch"
+        else
+          RELEASE_TYPE="none"
+        fi
+        
+        # Override com input manual se fornecido
+        if [ "${{ github.event.inputs.release_type }}" != "" ]; then
+          RELEASE_TYPE="${{ github.event.inputs.release_type }}"
+        fi
+        
+        # Determinar se deve fazer release
+        if [ "$COMMITS_SINCE" -gt 0 ] && [ "$RELEASE_TYPE" != "none" ] || [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          SHOULD_RELEASE="true"
+        else
+          SHOULD_RELEASE="false"
+        fi
+        
+        # Calcular próxima versão
+        CURRENT_VERSION=$(echo $LAST_TAG | sed 's/v//')
+        if [ "${{ github.event.inputs.custom_version }}" != "" ]; then
+          NEXT_VERSION="${{ github.event.inputs.custom_version }}"
+        else
+          case $RELEASE_TYPE in
+            major)
+              NEXT_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print ($1+1)".0.0"}')
+              ;;
+            minor)
+              NEXT_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1"."($2+1)".0"}')
+              ;;
+            patch)
+              NEXT_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1"."$2"."($3+1)}')
+              ;;
+          esac
+        fi
+        
+        echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+        echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+        echo "changes=Features: $FEAT_COUNT, Fixes: $FIX_COUNT, Breaking: $BREAKING_COUNT" >> $GITHUB_OUTPUT
+
+  # Executar testes completos antes do release
+  pre-release-tests:
+    name: 🧪 Pre-Release Tests
+    runs-on: ubuntu-latest
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📋 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+        
+    - name: 🧪 Run comprehensive tests
+      run: |
+        pytest tests/ -v --tb=short \
+          --cov=src --cov-report=xml \
+          --cov-fail-under=80 \
+          --timeout=600
+
+  # Criar release
+  create-release:
+    name: 📦 Create Release
+    runs-on: ubuntu-latest
+    needs: [check-release, pre-release-tests]
+    if: needs.check-release.outputs.should_release == 'true'
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ needs.check-release.outputs.version }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📋 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        
+    - name: 📝 Generate Changelog
+      id: changelog
+      run: |
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        VERSION="${{ needs.check-release.outputs.version }}"
+        
+        # Gerar changelog
+        cat > CHANGELOG_RELEASE.md << EOF
+        # Release v${VERSION}
+        
+        ## 📊 Summary
+        ${{ needs.check-release.outputs.changes }}
+        
+        ## 🚀 Features
+        $(git log ${LAST_TAG}..HEAD --oneline --grep="feat:" --pretty=format:"- %s" || echo "- No new features")
+        
+        ## 🐛 Bug Fixes  
+        $(git log ${LAST_TAG}..HEAD --oneline --grep="fix:" --pretty=format:"- %s" || echo "- No bug fixes")
+        
+        ## ⚡ Performance Improvements
+        $(git log ${LAST_TAG}..HEAD --oneline --grep="perf:" --pretty=format:"- %s" || echo "- No performance improvements")
+        
+        ## 📚 Documentation
+        $(git log ${LAST_TAG}..HEAD --oneline --grep="docs:" --pretty=format:"- %s" || echo "- No documentation updates")
+        
+        ## 🔧 Chores
+        $(git log ${LAST_TAG}..HEAD --oneline --grep="chore:" --pretty=format:"- %s" || echo "- No chores")
+        
+        ## 💥 Breaking Changes
+        $(git log ${LAST_TAG}..HEAD --oneline --grep="BREAKING CHANGE" --pretty=format:"- %s" || echo "- No breaking changes")
+        
+        ## 📈 Metrics
+        - Commits: $(git rev-list ${LAST_TAG}..HEAD --count)
+        - Files changed: $(git diff --name-only ${LAST_TAG}..HEAD | wc -l)
+        - Contributors: $(git shortlog -sn ${LAST_TAG}..HEAD | wc -l)
+        
+        ## 🔗 Links
+        - **Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${VERSION}
+        - **Docker Image**: ghcr.io/${{ github.repository }}:${VERSION}
+        EOF
+        
+        echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_ENV
+        cat CHANGELOG_RELEASE.md >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        
+    - name: 🏷️ Create Git Tag
+      run: |
+        VERSION="${{ needs.check-release.outputs.version }}"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "v${VERSION}" -m "Release v${VERSION}"
+        git push origin "v${VERSION}"
+        
+    - name: 📦 Build Python Package
+      run: |
+        python -m build
+        
+    - name: 📋 Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ needs.check-release.outputs.version }}
+        release_name: Release v${{ needs.check-release.outputs.version }}
+        body: ${{ env.CHANGELOG_CONTENT }}
+        draft: false
+        prerelease: ${{ github.event.inputs.pre_release == 'true' }}
+        
+    - name: 📤 Upload Python Package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/llm-rag-system-${{ needs.check-release.outputs.version }}.tar.gz
+        asset_name: llm-rag-system-${{ needs.check-release.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+
+  # Build e push da imagem Docker
+  docker-release:
+    name: 🐳 Docker Release
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    if: needs.create-release.outputs.version != ''
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📊 Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=semver,pattern={{version}},value=v${{ needs.create-release.outputs.version }}
+          type=semver,pattern={{major}}.{{minor}},value=v${{ needs.create-release.outputs.version }}
+          type=semver,pattern={{major}},value=v${{ needs.create-release.outputs.version }}
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 🏗️ Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🐳 Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          VERSION=${{ needs.create-release.outputs.version }}
+          BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          VCS_REF=${{ github.sha }}
+
+  # Publicar no PyPI (se configurado)
+  pypi-release:
+    name: 📦 PyPI Release
+    runs-on: ubuntu-latest
+    needs: [create-release, pre-release-tests]
+    if: needs.create-release.outputs.version != '' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📋 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+        
+    - name: 📦 Build package
+      run: python -m build
+      
+    - name: 🔐 Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        skip-existing: true
+
+  # Notificações pós-release
+  post-release:
+    name: 📢 Post-Release Actions
+    runs-on: ubuntu-latest
+    needs: [create-release, docker-release]
+    if: always() && needs.create-release.outputs.version != ''
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📊 Update metrics
+      run: |
+        echo "🎉 Release v${{ needs.create-release.outputs.version }} completed!"
+        echo "📦 Docker images pushed to registry"
+        echo "🏷️ Git tag created and pushed"
+        echo "📝 Release notes generated"
+        
+    - name: 📢 Create deployment issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const version = "${{ needs.create-release.outputs.version }}";
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚀 Deploy v${version} to Production`,
+            body: `
+            ## Release v${version} Ready for Deployment
+            
+            ### ✅ Completed
+            - [x] Tests passed
+            - [x] Docker images built
+            - [x] Release created
+            - [x] Git tag pushed
+            
+            ### 📋 Next Steps
+            - [ ] Deploy to staging environment
+            - [ ] Run smoke tests
+            - [ ] Deploy to production
+            - [ ] Monitor metrics
+            - [ ] Update documentation
+            
+            ### 🔗 Links
+            - **Release**: https://github.com/${{ github.repository }}/releases/tag/v${version}
+            - **Docker**: ghcr.io/${{ github.repository }}:${version}
+            - **Changelog**: See release notes
+            
+            /cc @rag-maintainers
+            `,
+            labels: ['deployment', 'release', 'production']
+          });
+
+  # Limpar artefatos antigos
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [post-release]
+    if: always()
+    
+    steps:
+    - name: 🧹 Delete old workflow runs
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Manter apenas os 50 runs mais recentes
+          const runs = await github.rest.actions.listWorkflowRuns({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: context.workflow,
+            per_page: 100
+          });
+          
+          const oldRuns = runs.data.workflow_runs.slice(50);
+          
+          for (const run of oldRuns) {
+            if (run.status === 'completed') {
+              await github.rest.actions.deleteWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id
+              });
+            }
+          } 

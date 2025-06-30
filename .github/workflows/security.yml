@@ -1,0 +1,467 @@
+# Security Scanning Workflow
+# Executa verificações de segurança abrangentes
+
+name: 🔒 Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Executar scan de segurança diário às 3:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      scan_level:
+        description: 'Nível de scan'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - quick
+          - standard
+          - comprehensive
+      include_dependencies:
+        description: 'Incluir scan de dependências'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Scan de código estático
+  static-analysis:
+    name: 🔍 Static Code Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📦 Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-security-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-security-
+          ${{ runner.os }}-pip-
+          
+    - name: 📋 Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety semgrep ruff mypy
+        pip install -r requirements.txt
+        
+    - name: 🛡️ Run Bandit security scan
+      run: |
+        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ -f txt -o bandit-report.txt
+        
+        # Verificar se há issues de alta severidade
+        if bandit -r src/ -ll | grep -E "High|Medium"; then
+          echo "🚨 Issues de segurança encontrados!"
+          echo "::warning::Issues de segurança detectados pelo Bandit"
+        else
+          echo "✅ Nenhum issue de alta severidade encontrado"
+        fi
+        
+    - name: 🔍 Run Semgrep security scan
+      run: |
+        # Executar semgrep com regras de segurança
+        semgrep --config=auto src/ --json --output=semgrep-report.json || true
+        semgrep --config=auto src/ --output=semgrep-report.txt || true
+        
+        echo "✅ Semgrep scan concluído"
+        
+    - name: 📊 Static analysis with MyPy
+      run: |
+        mypy src/ --ignore-missing-imports --strict-optional \
+          --warn-redundant-casts --warn-unused-ignores \
+          --output-format=json > mypy-security.json || true
+        echo "✅ MyPy analysis concluído"
+        
+    - name: ⚡ Fast security lint with Ruff
+      run: |
+        ruff check src/ --select=S,B,E9,F63,F7,F82 --output-format=json > ruff-security.json || true
+        echo "✅ Ruff security check concluído"
+        
+    - name: 📤 Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: static-security-reports
+        path: |
+          bandit-report.json
+          bandit-report.txt
+          semgrep-report.json
+          semgrep-report.txt
+          mypy-security.json
+          ruff-security.json
+
+  # Scan de dependências
+  dependency-scan:
+    name: 📦 Dependency Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.inputs.include_dependencies != 'false'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📋 Install safety
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety pip-audit
+        
+    - name: 🔐 Safety vulnerability check
+      run: |
+        # Verificar vulnerabilidades conhecidas
+        safety check --json --output safety-report.json || true
+        safety check --output safety-report.txt || true
+        
+        # Verificar se há vulnerabilidades críticas
+        if safety check --short-report | grep -E "CRITICAL|HIGH"; then
+          echo "🚨 Vulnerabilidades críticas encontradas!"
+          echo "::error::Vulnerabilidades críticas nas dependências"
+          safety check --short-report
+          exit 1
+        else
+          echo "✅ Nenhuma vulnerabilidade crítica encontrada"
+        fi
+        
+    - name: 🔍 Pip-audit scan
+      run: |
+        pip-audit --format=json --output=pip-audit-report.json || true
+        pip-audit --output=pip-audit-report.txt || true
+        echo "✅ Pip-audit scan concluído"
+        
+    - name: 📊 Generate dependency report
+      run: |
+        echo "# Dependency Security Report" > dependency-summary.md
+        echo "" >> dependency-summary.md
+        echo "## Safety Scan Results" >> dependency-summary.md
+        echo "\`\`\`" >> dependency-summary.md
+        if [ -f safety-report.txt ]; then
+          cat safety-report.txt >> dependency-summary.md
+        else
+          echo "No vulnerabilities found by Safety" >> dependency-summary.md
+        fi
+        echo "\`\`\`" >> dependency-summary.md
+        echo "" >> dependency-summary.md
+        echo "## Pip-audit Results" >> dependency-summary.md
+        echo "\`\`\`" >> dependency-summary.md
+        if [ -f pip-audit-report.txt ]; then
+          cat pip-audit-report.txt >> dependency-summary.md
+        else
+          echo "No vulnerabilities found by pip-audit" >> dependency-summary.md
+        fi
+        echo "\`\`\`" >> dependency-summary.md
+        
+    - name: 📤 Upload dependency reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: dependency-security-reports
+        path: |
+          safety-report.json
+          safety-report.txt
+          pip-audit-report.json
+          pip-audit-report.txt
+          dependency-summary.md
+
+  # Scan de secrets/credenciais
+  secrets-scan:
+    name: 🔑 Secrets Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔍 Install TruffleHog
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+        
+    - name: 🔑 Scan for secrets with TruffleHog
+      run: |
+        trufflehog git file://. --json > trufflehog-report.json || true
+        
+        # Verificar se encontrou secrets
+        if [ -s trufflehog-report.json ]; then
+          echo "🚨 Possíveis secrets encontrados!"
+          echo "::warning::Possíveis credenciais detectadas no código"
+          cat trufflehog-report.json
+        else
+          echo "✅ Nenhum secret detectado"
+        fi
+        
+    - name: 🔍 Manual secrets check
+      run: |
+        echo "Verificando padrões comuns de credenciais..."
+        
+        # Verificar padrões comuns
+        PATTERNS=(
+          "password\s*=\s*['\"][^'\"]+['\"]"
+          "api_key\s*=\s*['\"][^'\"]+['\"]"
+          "secret\s*=\s*['\"][^'\"]+['\"]"
+          "token\s*=\s*['\"][^'\"]+['\"]"
+          "AWS_SECRET_ACCESS_KEY"
+          "OPENAI_API_KEY.*sk-"
+          "ANTHROPIC_API_KEY.*sk-ant-"
+        )
+        
+        FOUND_ISSUES=0
+        for pattern in "${PATTERNS[@]}"; do
+          if grep -r -i -E "$pattern" src/ --exclude-dir=__pycache__ --exclude="*.pyc" 2>/dev/null; then
+            echo "⚠️ Padrão suspeito encontrado: $pattern"
+            FOUND_ISSUES=1
+          fi
+        done
+        
+        if [ $FOUND_ISSUES -eq 0 ]; then
+          echo "✅ Nenhum padrão suspeito encontrado"
+        else
+          echo "🚨 Padrões suspeitos detectados!"
+          echo "::warning::Possíveis credenciais hardcoded detectadas"
+        fi
+        
+    - name: 📤 Upload secrets reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: secrets-scan-reports
+        path: |
+          trufflehog-report.json
+
+  # Análise de Docker
+  docker-security:
+    name: 🐳 Docker Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.inputs.scan_level != 'quick'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🏗️ Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 🐳 Build Docker image for security scan
+      run: |
+        docker build -t rag-system:security-scan .
+        
+    - name: 🔍 Install Trivy
+      run: |
+        sudo apt-get update
+        sudo apt-get install wget apt-transport-https gnupg lsb-release
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install trivy
+        
+    - name: 🔒 Scan Docker image with Trivy
+      run: |
+        # Scan de vulnerabilidades
+        trivy image --format json --output trivy-report.json rag-system:security-scan
+        trivy image --format table --output trivy-report.txt rag-system:security-scan
+        
+        # Verificar vulnerabilidades críticas
+        if trivy image --severity CRITICAL,HIGH --quiet rag-system:security-scan; then
+          echo "✅ Nenhuma vulnerabilidade crítica encontrada"
+        else
+          echo "🚨 Vulnerabilidades críticas encontradas na imagem Docker!"
+          echo "::warning::Vulnerabilidades críticas na imagem Docker"
+        fi
+        
+    - name: 🔍 Docker best practices check
+      run: |
+        echo "Verificando melhores práticas do Dockerfile..."
+        
+        # Verificações básicas
+        if grep -q "FROM.*:latest" Dockerfile; then
+          echo "⚠️ Uso de tag 'latest' detectado"
+        fi
+        
+        if ! grep -q "USER" Dockerfile; then
+          echo "⚠️ Container pode estar rodando como root"
+        fi
+        
+        if grep -q "ADD http" Dockerfile; then
+          echo "⚠️ Uso de ADD com URL detectado - prefira RUN + wget/curl"
+        fi
+        
+        echo "✅ Verificação de melhores práticas concluída"
+        
+    - name: 📤 Upload Docker security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: docker-security-reports
+        path: |
+          trivy-report.json
+          trivy-report.txt
+
+  # Compilar relatório final
+  security-report:
+    name: 📋 Security Report
+    runs-on: ubuntu-latest
+    needs: [static-analysis, dependency-scan, secrets-scan]
+    if: always()
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📥 Download all reports
+      uses: actions/download-artifact@v3
+      
+    - name: 📊 Generate comprehensive security report
+      run: |
+        echo "# Security Scan Report" > SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> SECURITY_REPORT.md
+        echo "**Commit:** ${{ github.sha }}" >> SECURITY_REPORT.md
+        echo "**Branch:** ${{ github.ref_name }}" >> SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        
+        # Status geral
+        echo "## 📊 Security Status Overview" >> SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        
+        # Verificar se há reports críticos
+        CRITICAL_ISSUES=0
+        
+        if [ -d "static-security-reports" ]; then
+          echo "### 🔍 Static Analysis" >> SECURITY_REPORT.md
+          if [ -f "static-security-reports/bandit-report.txt" ]; then
+            echo "- **Bandit:** $(wc -l < static-security-reports/bandit-report.txt) issues found" >> SECURITY_REPORT.md
+          fi
+          echo "" >> SECURITY_REPORT.md
+        fi
+        
+        if [ -d "dependency-security-reports" ]; then
+          echo "### 📦 Dependencies" >> SECURITY_REPORT.md
+          if [ -f "dependency-security-reports/safety-report.txt" ]; then
+            echo "- **Safety:** Security scan completed" >> SECURITY_REPORT.md
+          fi
+          echo "" >> SECURITY_REPORT.md
+        fi
+        
+        if [ -d "secrets-scan-reports" ]; then
+          echo "### 🔑 Secrets Scan" >> SECURITY_REPORT.md
+          echo "- **TruffleHog:** Secrets scan completed" >> SECURITY_REPORT.md
+          echo "" >> SECURITY_REPORT.md
+        fi
+        
+        # Recomendações
+        echo "## 🎯 Recommendations" >> SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        echo "1. **Regular Updates:** Keep dependencies updated" >> SECURITY_REPORT.md
+        echo "2. **Code Review:** Review all security findings" >> SECURITY_REPORT.md
+        echo "3. **Environment Variables:** Use env vars for secrets" >> SECURITY_REPORT.md
+        echo "4. **Input Validation:** Validate all user inputs" >> SECURITY_REPORT.md
+        echo "5. **Access Control:** Implement proper authentication" >> SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        
+        # Links úteis
+        echo "## 🔗 Useful Links" >> SECURITY_REPORT.md
+        echo "" >> SECURITY_REPORT.md
+        echo "- [OWASP Top 10](https://owasp.org/www-project-top-ten/)" >> SECURITY_REPORT.md
+        echo "- [Python Security Guide](https://python-security.readthedocs.io/)" >> SECURITY_REPORT.md
+        echo "- [FastAPI Security](https://fastapi.tiangolo.com/tutorial/security/)" >> SECURITY_REPORT.md
+        
+    - name: 📤 Upload final security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: comprehensive-security-report
+        path: SECURITY_REPORT.md
+        
+    - name: 📋 Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let reportContent = '';
+          
+          try {
+            reportContent = fs.readFileSync('SECURITY_REPORT.md', 'utf8');
+          } catch (error) {
+            reportContent = '❌ Could not generate security report';
+          }
+          
+          const comment = `
+          ## 🔒 Security Scan Results
+          
+          ${reportContent}
+          
+          > 📝 This comment is automatically generated by the Security Workflow
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  # Notificações de segurança
+  security-notifications:
+    name: 📢 Security Notifications
+    runs-on: ubuntu-latest
+    needs: [security-report]
+    if: failure() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+    - name: 🚨 Create security issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 Security Issues Detected',
+            body: `
+            ## 🔒 Security Alert
+            
+            Security issues were detected in the latest scan.
+            
+            **Branch:** ${context.ref}
+            **Commit:** ${context.sha}
+            **Workflow:** ${context.workflow}
+            
+            ### 🔍 Next Steps
+            1. Review the security scan results
+            2. Address critical and high severity issues
+            3. Update dependencies if needed
+            4. Re-run security scan
+            
+            ### 📊 Reports
+            Check the workflow artifacts for detailed reports.
+            
+            /cc @rag-maintainers
+            `,
+            labels: ['security', 'critical', 'bug']
+          }); 

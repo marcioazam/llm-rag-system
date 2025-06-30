@@ -1,7 +1,7 @@
 version: 2
 
 updates:
-  # Python dependencies
+  # Python dependencies - Produção
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -9,6 +9,7 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "UTC"
+    target-branch: "develop"
     open-pull-requests-limit: 10
     reviewers:
       - "rag-maintainers"
@@ -21,16 +22,67 @@ updates:
     labels:
       - "dependencies"
       - "python"
-    # Agrupar atualizações menores
+      - "automerge"
+    # Agrupar atualizações por tipo
     groups:
-      minor-updates:
+      ai-ml-libraries:
         applies-to: version-updates
+        patterns:
+          - "openai*"
+          - "anthropic*"
+          - "langchain*"
+          - "transformers*"
+          - "torch*"
+          - "numpy*"
+          - "scipy*"
+          - "scikit-learn*"
         update-types:
           - "minor"
           - "patch"
+      
+      web-framework:
+        applies-to: version-updates
+        patterns:
+          - "fastapi*"
+          - "uvicorn*"
+          - "starlette*"
+          - "pydantic*"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      database-libraries:
+        applies-to: version-updates
+        patterns:
+          - "qdrant*"
+          - "neo4j*"
+          - "redis*"
+          - "sqlite*"
+          - "sqlalchemy*"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      testing-tools:
+        applies-to: version-updates
+        patterns:
+          - "pytest*"
+          - "coverage*"
+          - "mock*"
+          - "faker*"
+        update-types:
+          - "minor"
+          - "patch"
+      
       security-updates:
         applies-to: security-updates
-    # Configurações específicas por dependência
+      
+      minor-patches:
+        applies-to: version-updates
+        update-types:
+          - "patch"
+    
+    # Configurações específicas por dependência crítica
     ignore:
       # Ignorar atualizações principais que podem quebrar compatibilidade
       - dependency-name: "torch"
@@ -39,9 +91,56 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "fastapi"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "qdrant-client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "neo4j"
+        update-types: ["version-update:semver-major"]
+      # Dependências específicas com versões fixas por compatibilidade
+      - dependency-name: "numpy"
+        versions: ["2.0.x", "2.1.x"]
+    
     # Rebase automático em conflitos
     rebase-strategy: "auto"
     
+    # Configurações de versioning
+    versioning-strategy: "increase"
+    
+  # Python dependencies - Desenvolvimento
+  - package-ecosystem: "pip"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "daily"
+      time: "10:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps-dev"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "development"
+      - "automerge"
+    # Apenas para dependências de desenvolvimento
+    allow:
+      - dependency-type: "development"
+    groups:
+      dev-tools:
+        applies-to: version-updates
+        patterns:
+          - "black*"
+          - "isort*"
+          - "flake8*"
+          - "mypy*"
+          - "bandit*"
+          - "ruff*"
+          - "pre-commit*"
+        update-types:
+          - "minor"
+          - "patch"
+
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -50,6 +149,7 @@ updates:
       day: "tuesday"
       time: "10:00"
       timezone: "UTC"
+    target-branch: "develop"
     open-pull-requests-limit: 5
     reviewers:
       - "rag-maintainers"
@@ -59,13 +159,19 @@ updates:
     labels:
       - "github-actions"
       - "ci/cd"
+      - "automerge"
     groups:
       github-actions:
         patterns:
           - "actions/*"
           - "github/super-linter"
+          - "codecov/codecov-action"
+          - "docker/*"
+        update-types:
+          - "minor"
+          - "patch"
           
-  # Docker dependencies (se houver Dockerfile)
+  # Docker dependencies
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -73,7 +179,8 @@ updates:
       day: "wednesday"
       time: "11:00"
       timezone: "UTC"
-    open-pull-requests-limit: 5
+    target-branch: "develop"
+    open-pull-requests-limit: 3
     reviewers:
       - "rag-maintainers"
     commit-message:
@@ -81,4 +188,51 @@ updates:
       include: "scope"
     labels:
       - "docker"
-      - "infrastructure" 
+      - "infrastructure"
+      - "automerge"
+    groups:
+      base-images:
+        patterns:
+          - "python*"
+          - "node*"
+          - "ubuntu*"
+          - "alpine*"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      service-images:
+        patterns:
+          - "qdrant/*"
+          - "neo4j*"
+          - "redis*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Terraform (se houver infraestrutura como código)
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "monthly"
+      day: 1
+      time: "12:00"
+      timezone: "UTC"
+    target-branch: "develop"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "terraform"
+    labels:
+      - "terraform"
+      - "infrastructure"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+# Configurações globais de automerge
+# Estas configurações podem ser usadas com GitHub branch protection rules
+automerge:
+  security-updates: true
+  patch-updates: true
+  minor-updates: false
+  major-updates: false 

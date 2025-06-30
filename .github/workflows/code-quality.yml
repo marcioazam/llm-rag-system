@@ -1,0 +1,463 @@
+# Code Quality Workflow
+# Análise de qualidade de código, métricas e linting
+
+name: 📊 Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Executar análise de qualidade semanalmente
+    - cron: '0 6 * * 1'  # Segunda-feira às 6:00 UTC
+  workflow_dispatch:
+    inputs:
+      detailed_analysis:
+        description: 'Executar análise detalhada'
+        required: false
+        default: false
+        type: boolean
+      coverage_threshold:
+        description: 'Limite mínimo de cobertura (%)'
+        required: false
+        default: '75'
+        type: string
+
+env:
+  PYTHON_VERSION: '3.11'
+  COVERAGE_THRESHOLD: ${{ github.event.inputs.coverage_threshold || '75' }}
+
+jobs:
+  # Análise de qualidade de código
+  code-quality:
+    name: 📈 Code Quality Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Necessário para análise histórica
+        
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📦 Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-quality-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-quality-
+          ${{ runner.os }}-pip-
+          
+    - name: 📋 Install quality tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install \
+          black isort flake8 mypy ruff \
+          pytest pytest-cov pytest-html pytest-json-report \
+          coverage radon vulture mccabe \
+          pylint bandit safety
+          
+    - name: 🎨 Code formatting check
+      run: |
+        echo "### 🎨 Code Formatting" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Black
+        if black --check --diff src/ tests/; then
+          echo "✅ **Black**: Code formatting is consistent" >> quality-report.md
+        else
+          echo "❌ **Black**: Code formatting issues found" >> quality-report.md
+          black --check --diff src/ tests/ || true
+        fi
+        
+        # isort
+        if isort --check-only --diff src/ tests/; then
+          echo "✅ **isort**: Import sorting is correct" >> quality-report.md
+        else
+          echo "❌ **isort**: Import sorting issues found" >> quality-report.md
+          isort --check-only --diff src/ tests/ || true
+        fi
+        echo "" >> quality-report.md
+        
+    - name: 🔍 Linting analysis
+      run: |
+        echo "### 🔍 Linting Analysis" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Flake8
+        flake8 src/ tests/ --statistics --output-file=flake8-report.txt || true
+        FLAKE8_ISSUES=$(cat flake8-report.txt | wc -l)
+        echo "- **Flake8**: $FLAKE8_ISSUES issues found" >> quality-report.md
+        
+        # Ruff (fast linter)
+        ruff check src/ tests/ --output-format=json > ruff-report.json || true
+        RUFF_ISSUES=$(cat ruff-report.json | jq length)
+        echo "- **Ruff**: $RUFF_ISSUES issues found" >> quality-report.md
+        
+        # Pylint
+        pylint src/ --output-format=json > pylint-report.json || true
+        PYLINT_SCORE=$(cat pylint-report.json | jq -r '.score // "N/A"')
+        echo "- **Pylint**: Score $PYLINT_SCORE/10" >> quality-report.md
+        echo "" >> quality-report.md
+        
+    - name: 🏷️ Type checking
+      run: |
+        echo "### 🏷️ Type Checking" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # MyPy
+        mypy src/ --output-format=json > mypy-report.json || true
+        MYPY_ERRORS=$(cat mypy-report.json | jq length)
+        echo "- **MyPy**: $MYPY_ERRORS type errors found" >> quality-report.md
+        echo "" >> quality-report.md
+        
+    - name: 📊 Complexity analysis
+      run: |
+        echo "### 📊 Code Complexity" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Radon - Complexidade ciclomática
+        radon cc src/ --json > radon-cc.json
+        COMPLEX_FUNCTIONS=$(cat radon-cc.json | jq '[.[] | .[] | select(.complexity > 10)] | length')
+        echo "- **Cyclomatic Complexity**: $COMPLEX_FUNCTIONS functions with complexity > 10" >> quality-report.md
+        
+        # Radon - Maintainability Index
+        radon mi src/ --json > radon-mi.json
+        AVG_MI=$(cat radon-mi.json | jq '[.[] | .mi] | add / length')
+        echo "- **Maintainability Index**: $AVG_MI (higher is better)" >> quality-report.md
+        
+        # Radon - Hallstead metrics
+        radon hal src/ --json > radon-hal.json
+        echo "- **Halstead Metrics**: Generated" >> quality-report.md
+        echo "" >> quality-report.md
+        
+    - name: 🗑️ Dead code analysis
+      run: |
+        echo "### 🗑️ Dead Code Analysis" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Vulture - dead code detection
+        vulture src/ --json > vulture-report.json || true
+        DEAD_CODE_ITEMS=$(cat vulture-report.json | jq length)
+        echo "- **Vulture**: $DEAD_CODE_ITEMS potential dead code items found" >> quality-report.md
+        echo "" >> quality-report.md
+        
+    - name: 📏 Code metrics
+      run: |
+        echo "### 📏 Code Metrics" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Contar linhas de código
+        TOTAL_LINES=$(find src/ -name "*.py" -exec wc -l {} + | tail -1 | awk '{print $1}')
+        TEST_LINES=$(find tests/ -name "*.py" -exec wc -l {} + | tail -1 | awk '{print $1}')
+        TOTAL_FILES=$(find src/ -name "*.py" | wc -l)
+        TEST_FILES=$(find tests/ -name "*.py" | wc -l)
+        
+        echo "- **Total Lines of Code**: $TOTAL_LINES" >> quality-report.md
+        echo "- **Test Lines of Code**: $TEST_LINES" >> quality-report.md
+        echo "- **Source Files**: $TOTAL_FILES" >> quality-report.md
+        echo "- **Test Files**: $TEST_FILES" >> quality-report.md
+        echo "- **Test to Source Ratio**: $(echo "scale=2; $TEST_LINES / $TOTAL_LINES" | bc)" >> quality-report.md
+        echo "" >> quality-report.md
+        
+    - name: 🧪 Test coverage analysis
+      run: |
+        echo "### 🧪 Test Coverage" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Executar testes com coverage
+        pytest tests/ --cov=src --cov-report=xml --cov-report=html --cov-report=json --cov-report=term-missing > coverage-output.txt || true
+        
+        # Extrair métricas de coverage
+        COVERAGE_PERCENT=$(python -c "import json; data=json.load(open('coverage.json')); print(f'{data[\"totals\"][\"percent_covered\"]:.1f}')" 2>/dev/null || echo "N/A")
+        MISSING_LINES=$(python -c "import json; data=json.load(open('coverage.json')); print(data['totals']['missing_lines'])" 2>/dev/null || echo "N/A")
+        
+        echo "- **Coverage Percentage**: $COVERAGE_PERCENT%" >> quality-report.md
+        echo "- **Missing Lines**: $MISSING_LINES" >> quality-report.md
+        echo "- **Coverage Threshold**: ${{ env.COVERAGE_THRESHOLD }}%" >> quality-report.md
+        
+        # Verificar se atende ao threshold
+        if (( $(echo "$COVERAGE_PERCENT >= ${{ env.COVERAGE_THRESHOLD }}" | bc -l) )); then
+          echo "✅ **Coverage Status**: Meets threshold" >> quality-report.md
+        else
+          echo "❌ **Coverage Status**: Below threshold" >> quality-report.md
+        fi
+        echo "" >> quality-report.md
+        
+    - name: 📈 Generate quality score
+      run: |
+        echo "### 📈 Overall Quality Score" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Calcular score baseado em métricas
+        QUALITY_SCORE=100
+        
+        # Penalizar por issues de linting
+        FLAKE8_ISSUES=$(cat flake8-report.txt | wc -l)
+        QUALITY_SCORE=$((QUALITY_SCORE - FLAKE8_ISSUES))
+        
+        # Penalizar por complexidade alta
+        COMPLEX_FUNCTIONS=$(cat radon-cc.json | jq '[.[] | .[] | select(.complexity > 10)] | length')
+        QUALITY_SCORE=$((QUALITY_SCORE - COMPLEX_FUNCTIONS * 5))
+        
+        # Penalizar por coverage baixa
+        COVERAGE_PERCENT=$(python -c "import json; data=json.load(open('coverage.json')); print(int(data['totals']['percent_covered']))" 2>/dev/null || echo "0")
+        if [ $COVERAGE_PERCENT -lt ${{ env.COVERAGE_THRESHOLD }} ]; then
+          QUALITY_SCORE=$((QUALITY_SCORE - 20))
+        fi
+        
+        # Limitar score entre 0 e 100
+        if [ $QUALITY_SCORE -lt 0 ]; then
+          QUALITY_SCORE=0
+        fi
+        
+        echo "**Quality Score: $QUALITY_SCORE/100**" >> quality-report.md
+        
+        # Determinar grade
+        if [ $QUALITY_SCORE -ge 90 ]; then
+          GRADE="A"
+        elif [ $QUALITY_SCORE -ge 80 ]; then
+          GRADE="B"
+        elif [ $QUALITY_SCORE -ge 70 ]; then
+          GRADE="C"
+        elif [ $QUALITY_SCORE -ge 60 ]; then
+          GRADE="D"
+        else
+          GRADE="F"
+        fi
+        
+        echo "**Grade: $GRADE**" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        # Adicionar recomendações
+        echo "### 🎯 Recommendations" >> quality-report.md
+        echo "" >> quality-report.md
+        
+        if [ $FLAKE8_ISSUES -gt 0 ]; then
+          echo "- 🔧 Fix linting issues detected by Flake8" >> quality-report.md
+        fi
+        
+        if [ $COMPLEX_FUNCTIONS -gt 0 ]; then
+          echo "- 🧩 Refactor complex functions (complexity > 10)" >> quality-report.md
+        fi
+        
+        if [ $COVERAGE_PERCENT -lt ${{ env.COVERAGE_THRESHOLD }} ]; then
+          echo "- 🧪 Increase test coverage to meet threshold" >> quality-report.md
+        fi
+        
+        echo "- 📚 Add docstrings to undocumented functions" >> quality-report.md
+        echo "- 🔍 Review and remove dead code" >> quality-report.md
+        echo "- 🏷️ Add type hints where missing" >> quality-report.md
+        
+        # Salvar score em arquivo para outros jobs
+        echo "QUALITY_SCORE=$QUALITY_SCORE" >> $GITHUB_ENV
+        echo "QUALITY_GRADE=$GRADE" >> $GITHUB_ENV
+        
+    - name: 📤 Upload quality reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: code-quality-reports
+        path: |
+          quality-report.md
+          flake8-report.txt
+          ruff-report.json
+          pylint-report.json
+          mypy-report.json
+          radon-cc.json
+          radon-mi.json
+          radon-hal.json
+          vulture-report.json
+          coverage.xml
+          coverage.json
+          htmlcov/
+          coverage-output.txt
+
+  # Análise de dependências
+  dependency-analysis:
+    name: 📦 Dependency Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: 📋 Install analysis tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipdeptree pip-licenses johnnydep
+        
+    - name: 📊 Analyze dependencies
+      run: |
+        echo "# Dependency Analysis Report" > dependency-analysis.md
+        echo "" >> dependency-analysis.md
+        echo "**Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> dependency-analysis.md
+        echo "" >> dependency-analysis.md
+        
+        # Instalar dependências para análise
+        pip install -r requirements.txt
+        
+        # Dependency tree
+        echo "## 🌳 Dependency Tree" >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        pipdeptree >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        echo "" >> dependency-analysis.md
+        
+        # Licenses
+        echo "## 📄 Licenses" >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        pip-licenses --format=markdown >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        echo "" >> dependency-analysis.md
+        
+        # Outdated packages
+        echo "## 🔄 Outdated Packages" >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        pip list --outdated >> dependency-analysis.md || echo "All packages are up to date" >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        echo "" >> dependency-analysis.md
+        
+        # Package sizes
+        echo "## 📏 Package Sizes" >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        pip list --format=freeze | head -20 >> dependency-analysis.md
+        echo "\`\`\`" >> dependency-analysis.md
+        
+    - name: 📤 Upload dependency analysis
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-analysis
+        path: dependency-analysis.md
+
+  # Comentário no PR com resultado
+  pr-comment:
+    name: 📝 PR Comment
+    runs-on: ubuntu-latest
+    needs: [code-quality, dependency-analysis]
+    if: github.event_name == 'pull_request' && always()
+    
+    steps:
+    - name: 📥 Download quality reports
+      uses: actions/download-artifact@v3
+      with:
+        name: code-quality-reports
+        
+    - name: 📋 Comment on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let qualityReport = '';
+          try {
+            qualityReport = fs.readFileSync('quality-report.md', 'utf8');
+          } catch (error) {
+            qualityReport = '❌ Could not load quality report';
+          }
+          
+          const comment = `
+          ## 📊 Code Quality Report
+          
+          ${qualityReport}
+          
+          ### 📈 Metrics Summary
+          - ✅ **Automated Analysis**: Completed
+          - 📊 **Reports**: Available in workflow artifacts
+          - 🔍 **Security**: See security workflow for details
+          
+          ### 🔗 Quick Links
+          - [Quality Reports](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+          - [Coverage Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+          
+          > 📝 This comment is automatically generated by the Code Quality workflow
+          `;
+          
+          // Procurar por comentários existentes
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.data.find(
+            comment => comment.body.includes('Code Quality Report')
+          );
+          
+          if (existingComment) {
+            // Atualizar comentário existente
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: comment
+            });
+          } else {
+            // Criar novo comentário
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          }
+
+  # Atualizar badges no README
+  update-badges:
+    name: 🏷️ Update Quality Badges
+    runs-on: ubuntu-latest
+    needs: [code-quality]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📊 Update README badges
+      run: |
+        # Obter score de qualidade dos outputs
+        QUALITY_SCORE="${{ needs.code-quality.outputs.QUALITY_SCORE || '0' }}"
+        QUALITY_GRADE="${{ needs.code-quality.outputs.QUALITY_GRADE || 'F' }}"
+        
+        # Determinar cor do badge baseado no score
+        if [ $QUALITY_SCORE -ge 90 ]; then
+          COLOR="brightgreen"
+        elif [ $QUALITY_SCORE -ge 80 ]; then
+          COLOR="green"
+        elif [ $QUALITY_SCORE -ge 70 ]; then
+          COLOR="yellow"
+        elif [ $QUALITY_SCORE -ge 60 ]; then
+          COLOR="orange"
+        else
+          COLOR="red"
+        fi
+        
+        # Atualizar badges no README (se existir)
+        if [ -f "README.md" ]; then
+          sed -i "s|\[![Quality](.*)\]|\[![Quality](https://img.shields.io/badge/Quality-${QUALITY_SCORE}%25%20(${QUALITY_GRADE})-${COLOR})]|g" README.md
+          
+          # Commit se houver mudanças
+          if ! git diff --quiet README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "docs: update quality badges [skip ci]"
+            git push
+          fi
+        fi 

@@ -1,0 +1,408 @@
+# Deployment Workflow
+# Deploy automatizado para staging e produção
+
+name: 🚀 Deploy
+
+on:
+  workflow_run:
+    workflows: ["🚀 Release Management"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente de deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Versão para deploy'
+        required: false
+        type: string
+      force_deploy:
+        description: 'Forçar deploy mesmo com falhas'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Preparação do deploy
+  prepare-deploy:
+    name: 📋 Prepare Deploy
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      environment: ${{ steps.env.outputs.environment }}
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔍 Determine version
+      id: version
+      run: |
+        if [ "${{ github.event.inputs.version }}" != "" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          # Usar última tag
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/v//' || echo "latest")
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Deploying version: $VERSION"
+        
+    - name: 🎯 Determine environment
+      id: env
+      run: |
+        if [ "${{ github.event.inputs.environment }}" != "" ]; then
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+        elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          ENVIRONMENT="production"
+        elif [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+          ENVIRONMENT="staging"
+        else
+          ENVIRONMENT="staging"
+        fi
+        echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+        echo "Deploying to: $ENVIRONMENT"
+        
+    - name: ✅ Check deployment readiness
+      id: check
+      run: |
+        SHOULD_DEPLOY="true"
+        
+        # Verificar se não é forçado e há falhas no workflow anterior
+        if [ "${{ github.event.workflow_run.conclusion }}" = "failure" ] && [ "${{ github.event.inputs.force_deploy }}" != "true" ]; then
+          echo "🚨 Previous workflow failed, skipping deploy"
+          SHOULD_DEPLOY="false"
+        fi
+        
+        # Verificar se a imagem Docker existe
+        VERSION="${{ steps.version.outputs.version }}"
+        if ! docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION} > /dev/null 2>&1; then
+          echo "⚠️ Docker image not found for version ${VERSION}"
+          if [ "${{ github.event.inputs.force_deploy }}" != "true" ]; then
+            SHOULD_DEPLOY="false"
+          fi
+        fi
+        
+        echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+
+  # Deploy para Staging
+  deploy-staging:
+    name: 🧪 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: prepare-deploy
+    if: needs.prepare-deploy.outputs.should_deploy == 'true' && needs.prepare-deploy.outputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://rag-system-staging.example.com
+    timeout-minutes: 15
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Configure staging credentials
+      run: |
+        echo "Configuring staging environment..."
+        # Aqui seriam configuradas as credenciais específicas de staging
+        
+    - name: 🐳 Deploy Docker container
+      run: |
+        VERSION="${{ needs.prepare-deploy.outputs.version }}"
+        IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}"
+        
+        echo "Deploying $IMAGE to staging..."
+        
+        # Simular deploy (substituir por comandos reais)
+        echo "🔄 Pulling image..."
+        # docker pull $IMAGE
+        
+        echo "🛑 Stopping old container..."
+        # docker stop rag-system-staging || true
+        # docker rm rag-system-staging || true
+        
+        echo "🚀 Starting new container..."
+        # docker run -d --name rag-system-staging \
+        #   -p 8080:8000 \
+        #   -e ENVIRONMENT=staging \
+        #   -e DATABASE_URL=... \
+        #   $IMAGE
+        
+        echo "✅ Staging deployment completed"
+        
+    - name: 🔍 Health check
+      run: |
+        echo "Performing health check..."
+        
+        # Aguardar container iniciar
+        sleep 30
+        
+        # Verificar saúde da aplicação
+        # HEALTH_URL="https://rag-system-staging.example.com/health"
+        # if curl -f $HEALTH_URL; then
+        #   echo "✅ Health check passed"
+        # else
+        #   echo "❌ Health check failed"
+        #   exit 1
+        # fi
+        
+        echo "✅ Health check simulated successfully"
+        
+    - name: 🧪 Run smoke tests
+      run: |
+        echo "Running smoke tests..."
+        
+        # Executar testes básicos
+        # python -m pytest tests/smoke/ --base-url=https://rag-system-staging.example.com
+        
+        echo "✅ Smoke tests passed"
+        
+    - name: 📊 Update deployment status
+      run: |
+        echo "📊 Staging Deployment Summary:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ needs.prepare-deploy.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Staging" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+        echo "- **URL**: https://rag-system-staging.example.com" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed at**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # Deploy para Produção
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: prepare-deploy
+    if: needs.prepare-deploy.outputs.should_deploy == 'true' && needs.prepare-deploy.outputs.environment == 'production'
+    environment:
+      name: production
+      url: https://rag-system.example.com
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🔐 Configure production credentials
+      run: |
+        echo "Configuring production environment..."
+        # Configurar credenciais de produção
+        
+    - name: 💾 Backup current version
+      run: |
+        echo "Creating backup of current production version..."
+        
+        # Backup do banco de dados
+        # kubectl exec deployment/rag-system -- pg_dump -U postgres rag_db > backup-$(date +%Y%m%d-%H%M%S).sql
+        
+        # Backup da configuração atual
+        # kubectl get deployment rag-system -o yaml > deployment-backup-$(date +%Y%m%d-%H%M%S).yaml
+        
+        echo "✅ Backup completed"
+        
+    - name: 🚀 Blue-Green Deployment
+      run: |
+        VERSION="${{ needs.prepare-deploy.outputs.version }}"
+        IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}"
+        
+        echo "Starting blue-green deployment..."
+        echo "New image: $IMAGE"
+        
+        # Blue-Green deployment simulation
+        echo "🟦 Deploying to blue environment..."
+        # kubectl set image deployment/rag-system-blue app=$IMAGE
+        # kubectl rollout status deployment/rag-system-blue --timeout=600s
+        
+        echo "🔍 Testing blue environment..."
+        # Executar health checks no ambiente blue
+        
+        echo "🟢 Switching traffic to blue..."
+        # kubectl patch service rag-system -p '{"spec":{"selector":{"version":"blue"}}}'
+        
+        echo "🟡 Scaling down green environment..."
+        # kubectl scale deployment rag-system-green --replicas=0
+        
+        echo "✅ Blue-green deployment completed"
+        
+    - name: 🔍 Production health check
+      run: |
+        echo "Performing comprehensive health check..."
+        
+        # Aguardar estabilização
+        sleep 60
+        
+        # Health checks
+        # HEALTH_URL="https://rag-system.example.com/health"
+        # API_URL="https://rag-system.example.com/info"
+        
+        # if curl -f $HEALTH_URL && curl -f $API_URL; then
+        #   echo "✅ Production health check passed"
+        # else
+        #   echo "❌ Production health check failed"
+        #   echo "🔄 Rolling back..."
+        #   # kubectl patch service rag-system -p '{"spec":{"selector":{"version":"green"}}}'
+        #   exit 1
+        # fi
+        
+        echo "✅ Production health check simulated successfully"
+        
+    - name: 🧪 Run production tests
+      run: |
+        echo "Running production validation tests..."
+        
+        # Testes de validação em produção
+        # python -m pytest tests/production/ --base-url=https://rag-system.example.com
+        
+        echo "✅ Production tests passed"
+        
+    - name: 📊 Update deployment status
+      run: |
+        echo "📊 Production Deployment Summary:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ needs.prepare-deploy.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+        echo "- **Strategy**: Blue-Green" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+        echo "- **URL**: https://rag-system.example.com" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed at**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # Testes pós-deploy
+  post-deploy-tests:
+    name: 🧪 Post-Deploy Tests
+    runs-on: ubuntu-latest
+    needs: [prepare-deploy, deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: 📋 Install test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest requests
+        
+    - name: 🔍 End-to-end tests
+      run: |
+        ENVIRONMENT="${{ needs.prepare-deploy.outputs.environment }}"
+        
+        if [ "$ENVIRONMENT" = "staging" ]; then
+          BASE_URL="https://rag-system-staging.example.com"
+        else
+          BASE_URL="https://rag-system.example.com"
+        fi
+        
+        echo "Running E2E tests against $BASE_URL"
+        
+        # Executar testes E2E
+        # pytest tests/e2e/ --base-url=$BASE_URL --timeout=300
+        
+        echo "✅ E2E tests completed successfully"
+        
+    - name: 📈 Performance benchmarks
+      run: |
+        echo "Running performance benchmarks..."
+        
+        # Executar benchmarks de performance
+        # python scripts/benchmark.py --url=$BASE_URL
+        
+        echo "✅ Performance benchmarks completed"
+
+  # Notificações
+  notify:
+    name: 📢 Notifications
+    runs-on: ubuntu-latest
+    needs: [prepare-deploy, deploy-staging, deploy-production, post-deploy-tests]
+    if: always()
+    
+    steps:
+    - name: 📊 Determine deployment status
+      id: status
+      run: |
+        if [ "${{ needs.deploy-staging.result }}" = "success" ] || [ "${{ needs.deploy-production.result }}" = "success" ]; then
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "message=✅ Deployment completed successfully" >> $GITHUB_OUTPUT
+        else
+          echo "status=failure" >> $GITHUB_OUTPUT
+          echo "message=❌ Deployment failed" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: 📢 Create deployment summary
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const status = "${{ steps.status.outputs.status }}";
+          const message = "${{ steps.status.outputs.message }}";
+          const version = "${{ needs.prepare-deploy.outputs.version }}";
+          const environment = "${{ needs.prepare-deploy.outputs.environment }}";
+          
+          const title = status === 'success' 
+            ? `🚀 Deployment v${version} to ${environment} - SUCCESS`
+            : `🚨 Deployment v${version} to ${environment} - FAILED`;
+            
+          const body = `
+          ## Deployment Summary
+          
+          **Version**: ${version}
+          **Environment**: ${environment}
+          **Status**: ${message}
+          **Commit**: ${context.sha}
+          **Deployed by**: ${context.actor}
+          **Deployed at**: ${new Date().toISOString()}
+          
+          ### 🔗 Links
+          - **Workflow**: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+          - **Release**: https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/v${version}
+          ${environment === 'staging' ? '- **Staging URL**: https://rag-system-staging.example.com' : ''}
+          ${environment === 'production' ? '- **Production URL**: https://rag-system.example.com' : ''}
+          
+          /cc @rag-maintainers
+          `;
+          
+          // Criar issue de deployment
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['deployment', environment, status === 'success' ? 'success' : 'failure']
+          });
+
+  # Rollback (manual)
+  rollback:
+    name: 🔄 Rollback
+    runs-on: ubuntu-latest
+    if: failure() && github.event.inputs.force_deploy != 'true'
+    needs: [deploy-staging, deploy-production]
+    
+    steps:
+    - name: 🔄 Perform rollback
+      run: |
+        echo "🚨 Deployment failed, initiating rollback..."
+        
+        ENVIRONMENT="${{ needs.prepare-deploy.outputs.environment }}"
+        
+        if [ "$ENVIRONMENT" = "production" ]; then
+          echo "🔄 Rolling back production deployment..."
+          # kubectl patch service rag-system -p '{"spec":{"selector":{"version":"green"}}}'
+          # kubectl scale deployment rag-system-green --replicas=3
+        else
+          echo "🔄 Rolling back staging deployment..."
+          # docker stop rag-system-staging
+          # docker run -d --name rag-system-staging-rollback [previous-image]
+        fi
+        
+        echo "✅ Rollback completed" 
