@@ -168,34 +168,23 @@ class TestPromptSelector:
         # Should match 'perf' first since it appears first in _KEYWORD_MAP iteration
         assert result in ["perf", "test"]  # Either is acceptable depending on dict order
 
-    @patch('src.prompt_selector._PROMPT_REGISTRY')
-    @patch('src.prompt_selector._REGISTRY_PATH')
-    def test_select_prompt_basic(self, mock_registry_path, mock_registry):
+    def test_select_prompt_basic(self):
         """Test basic prompt selection functionality."""
-        # Mock registry
-        mock_registry.return_value = {
-            "quick_fix_bug": {
-                "id": "quick_fix_bug",
-                "file": "quick_fix_bug.md",
-                "scope": "quick_fix"
-            }
-        }
-        
-        # Mock file path and content
-        mock_path = MagicMock()
-        mock_path.parent = Path("/mock/prompts")
-        mock_registry_path.return_value = mock_path
-        
-        mock_prompt_file = MagicMock()
-        mock_prompt_file.exists.return_value = True
-        mock_prompt_file.read_text.return_value = "Mock prompt content"
-        
-        with patch('pathlib.Path.__truediv__', return_value=mock_prompt_file):
-            with patch.dict('src.prompt_selector._PROMPT_REGISTRY', mock_registry.return_value):
-                prompt_id, prompt_text = select_prompt("traceback error")
-                
-                assert prompt_id == "quick_fix_bug"
-                assert prompt_text == "Mock prompt content"
+        with patch('src.prompt_selector._PROMPT_REGISTRY') as mock_registry:
+            mock_registry.__getitem__ = lambda self, key: {
+                "quick_fix_bug": {"scope": "quick_fix", "file": "quick_fix_bug.md"}
+            }[key]
+            
+            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {
+                "bugfix": ["quick_fix_bug"],
+                "geral": ["plan_and_solve"]
+            }):
+                with patch('pathlib.Path.exists', return_value=True):
+                    with patch('pathlib.Path.read_text', return_value="Mock prompt content"):
+                        prompt_id, prompt_text = select_prompt("traceback error")
+                        
+                        assert prompt_id == "quick_fix_bug"
+                        assert prompt_text == "Mock prompt content"
 
     def test_select_prompt_depth_filtering(self):
         """Test that depth parameter filters prompts correctly."""
@@ -206,7 +195,10 @@ class TestPromptSelector:
                 "deep_analysis": {"scope": "deep_dive", "file": "deep.md"}
             }[key]
             
-            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {"bugfix": ["quick_fix_bug", "deep_analysis"]}):
+            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {
+                "bugfix": ["quick_fix_bug", "deep_analysis"],
+                "geral": ["plan_and_solve"]
+            }):
                 with patch('pathlib.Path.exists', return_value=True):
                     with patch('pathlib.Path.read_text', return_value="Mock content"):
                         # Quick depth should filter out deep_dive
@@ -220,7 +212,10 @@ class TestPromptSelector:
                 "quick_fix_bug": {"scope": "quick_fix", "file": "nonexistent.md"}
             }[key]
             
-            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {"bugfix": ["quick_fix_bug"]}):
+            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {
+                "bugfix": ["quick_fix_bug"],
+                "geral": ["plan_and_solve"]
+            }):
                 with patch('pathlib.Path.exists', return_value=False):
                     with pytest.raises(FileNotFoundError, match="Prompt file.*not found"):
                         select_prompt("traceback error")
@@ -232,7 +227,10 @@ class TestPromptSelector:
                 "deep_analysis": {"scope": "deep_dive", "file": "deep.md"}
             }[key]
             
-            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {"bugfix": ["deep_analysis"]}):
+            with patch('src.prompt_selector._TYPE_TO_PROMPTS', {
+                "bugfix": ["deep_analysis"],
+                "geral": ["plan_and_solve"]
+            }):
                 with patch('pathlib.Path.exists', return_value=True):
                     with patch('pathlib.Path.read_text', return_value="Deep content"):
                         # Even with quick depth, should fallback to available prompt

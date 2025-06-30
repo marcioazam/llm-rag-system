@@ -178,13 +178,30 @@ class AdvancedChunker:
 
     # ------------------------
     def recursive_chunk(self, document: Dict[str, Any]) -> List[Dict[str, Any]]:
-        return [
-            {
-                "content": c,
-                "metadata": {**document.get("metadata", {}), "chunk_method": "recursive"},
-            }
-            for c in self.recursive.chunk_text(document["content"])
-        ]
+        try:
+            # Tentar API chunk_text primeiro
+            text_chunks = self.recursive.chunk_text(document["content"])
+            return [
+                {
+                    "content": chunk,
+                    "metadata": {**document.get("metadata", {}), "chunk_method": "recursive"},
+                }
+                for chunk in text_chunks
+            ]
+        except AttributeError:
+            try:
+                # Fallback para API chunk
+                chunks = self.recursive.chunk(document["content"], document.get("metadata", {}))
+                return [
+                    {
+                        "content": chunk.content if hasattr(chunk, 'content') else str(chunk),
+                        "metadata": {**document.get("metadata", {}), "chunk_method": "recursive"},
+                    }
+                    for chunk in chunks
+                ]
+            except Exception:
+                # Se tudo falhar, usar fallback semântico
+                return self.semantic_chunk(document)
 
     # ------------------------
     def topic_based_chunk(self, document: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -202,12 +219,20 @@ class AdvancedChunker:
         current: List[str] = []
         current_entities: set[str] = set()
         for sent in sentences:
-            sent_entities = {
-                ent
-                for ent_list in entities_map.values()
-                for ent in ent_list
-                if ent.lower() in sent.lower()
-            }
+            # Tratar entities_map como lista ou dicionário
+            if isinstance(entities_map, dict):
+                sent_entities = {
+                    ent
+                    for ent_list in entities_map.values()
+                    for ent in ent_list
+                    if ent.lower() in sent.lower()
+                }
+            else:
+                # Se for lista, iterar diretamente
+                sent_entities = {
+                    ent for ent in entities_map
+                    if isinstance(ent, str) and ent.lower() in sent.lower()
+                }
             if not current:
                 current.append(sent)
                 current_entities.update(sent_entities)

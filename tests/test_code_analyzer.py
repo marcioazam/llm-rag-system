@@ -504,7 +504,7 @@ from collections import defaultdict as dd
             assert 'typing.Dict' in import_names
             assert 'typing.Optional' in import_names
             assert 'local_module' in import_names
-            assert 'parent_module' in import_names
+            assert 'parent.parent_module' in import_names  # Import relativo: from ..parent import parent_module
             assert 'numpy' in import_names
             assert 'collections.defaultdict' in import_names
             

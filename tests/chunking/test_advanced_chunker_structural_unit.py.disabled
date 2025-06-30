@@ -1,0 +1,61 @@
+import importlib, sys, types
+import os
+from pathlib import Path
+
+# Adicionar o diretório raiz ao sys.path
+root_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(root_dir))
+
+# Stub heavy dependencies before import
+class MockIntelligentPreprocessor:
+    def __init__(self):
+        pass
+
+class MockRecursiveChunker:
+    def __init__(self, *args, **kwargs):
+        pass
+    def chunk_text(self, txt):
+        return [txt]
+
+class MockEnhancedSemanticChunker:
+    def __init__(self, *args, **kwargs):
+        pass
+    def chunk(self, text, metadata):
+        return []
+
+stub_modules = {
+    "src.preprocessing.intelligent_preprocessor": {"IntelligentPreprocessor": MockIntelligentPreprocessor},
+    "src.chunking.recursive_chunker": {"RecursiveChunker": MockRecursiveChunker},
+    "src.chunking.semantic_chunker_enhanced": {"EnhancedSemanticChunker": MockEnhancedSemanticChunker},
+}
+
+for mn, attrs in stub_modules.items():
+    mod = types.ModuleType(mn)
+    for k, v in attrs.items():
+        setattr(mod, k, v)
+    sys.modules[mn] = mod
+
+# Importar após configurar stubs
+adv_mod = importlib.import_module("src.chunking.advanced_chunker")
+AdvancedChunker = adv_mod.AdvancedChunker
+
+class _ES:  # embedding service stub
+    def embed_texts(self, texts, show_progress=False):
+        return [[0.1]] * len(texts)
+
+# Instanciar corretamente
+embedding_service = _ES()
+chunker = AdvancedChunker(embedding_service=embedding_service, max_chunk_size=50)
+
+def test_structural_chunk_short():
+    doc = {"content": "linha curta", "metadata": {}}
+    res = chunker.structural_chunk(doc)
+    assert len(res) == 1 and res[0]["content"] == "linha curta"
+
+
+def test_structural_chunk_long():
+    long_para = "x" * 60
+    doc = {"content": long_para + "\n\n" + long_para, "metadata": {}}
+    res = chunker.structural_chunk(doc)
+    # Deve haver pelo menos 2 chunks devido ao max_chunk_size 50
+    assert len(res) >= 2 

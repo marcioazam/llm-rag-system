@@ -107,7 +107,18 @@ class CodeAnalyzer:
             elif isinstance(node, ast.ImportFrom):
                 module = node.module or ""
                 for alias in node.names:
-                    name = f"{module}.{alias.name}" if module else alias.name
+                    # Para imports relativos, usar apenas o nome do módulo/item importado
+                    if module.startswith('.'):
+                        # Import relativo: usar apenas o nome final
+                        if module.count('.') == 1:  # from . import X
+                            name = alias.name
+                        else:  # from ..parent import X
+                            # Extrair o nome do módulo pai (sem os pontos)
+                            parent_module = module.lstrip('.')
+                            name = f"{parent_module}.{alias.name}" if parent_module else alias.name
+                    else:
+                        # Import absoluto normal
+                        name = f"{module}.{alias.name}" if module else alias.name
                     self._add_import(file_id, name)
 
             elif isinstance(node, ast.ClassDef):

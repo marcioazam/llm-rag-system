@@ -285,6 +285,9 @@ class SimpleRaptor:
         self.max_levels = max_levels
         self.min_cluster_size = min_cluster_size
         
+        # Guardar dimensão do embedding para acesso externo
+        self.embedding_dim = embedding_dim
+        
         # Componentes
         self.embedder = SimpleEmbedder(embedding_dim)
         self.clusterer = SimpleClusterer()

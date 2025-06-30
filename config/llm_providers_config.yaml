@@ -239,7 +239,106 @@ development:
   cache_disabled: false
   mock_apis: false
 
-# RAPTOR Configuration
+# RAPTOR Configuration (Integration System)
+raptor_integration:
+  # Estratégia de implementação
+  preferred_implementation: "enhanced"  # enhanced, offline, original
+  auto_fallback: true
+  
+  # Configurações Gerais
+  chunk_size: 400
+  chunk_overlap: 80
+  max_levels: 4
+  min_cluster_size: 2
+  max_cluster_size: 50
+  
+  # Enhanced Implementation (Preferred)
+  enhanced:
+    enabled: true
+    
+    # Embedding Configuration
+    embedding:
+      provider: "sentence_transformers"  # openai, sentence_transformers, huggingface
+      model: "all-MiniLM-L6-v2"
+      openai_model: "text-embedding-3-small"
+      cache_embeddings: true
+      batch_size: 32
+      
+    # Clustering Configuration
+    clustering:
+      method: "umap_gmm"  # umap_gmm, pca_gmm, kmeans
+      n_components: 8
+      min_dist: 0.0
+      n_neighbors: 15
+      quality_threshold: 0.3
+      
+    # Summarization Configuration  
+    summarization:
+      use_llm: false  # Set to true if OpenAI API key available
+      provider: "openai"  # openai, anthropic, google
+      model: "gpt-4o-mini"
+      max_tokens: 800
+      temperature: 0.1
+      fallback_to_concat: true
+      
+    # Cache Configuration
+    cache:
+      enabled: true
+      type: "multi_layer"  # memory, redis, multi_layer
+      ttl: 3600
+      max_memory_entries: 1000
+      redis_enabled: false  # Auto-detect based on REDIS_URL
+      
+    # Performance Configuration
+    performance:
+      max_workers: 4
+      parallel_embeddings: true
+      parallel_summarization: true
+      memory_optimization: true
+      batch_processing: true
+      
+  # Offline Implementation (Fallback)
+  offline:
+    enabled: true
+    embedding_model: "all-MiniLM-L6-v2"
+    clustering_method: "pca_gmm"
+    max_levels: 3
+    use_intelligent_summary: true
+    
+  # Original Implementation (Legacy)
+  original:
+    enabled: true
+    embedding_model: "sentence-transformers/all-mpnet-base-v2"
+    clustering_strategy: "global_local"
+    retrieval_strategy: "collapsed_tree"
+    umap:
+      n_components: 10
+      min_dist: 0.0
+      local_neighbors: 10
+    
+  # API Keys and Authentication
+  api_keys:
+    openai_api_key: "${OPENAI_API_KEY}"
+    anthropic_api_key: "${ANTHROPIC_API_KEY}"
+    google_api_key: "${GOOGLE_API_KEY}"
+    
+  # Monitoring and Metrics
+  monitoring:
+    enabled: true
+    track_implementation_usage: true
+    track_fallback_events: true
+    track_performance_metrics: true
+    log_construction_details: false
+    log_search_details: false
+    
+  # Development Settings
+  development:
+    debug_mode: false
+    force_implementation: null  # enhanced, offline, original
+    mock_llm_calls: false
+    save_intermediate_results: false
+
+# Legacy RAPTOR Configuration (Backward Compatibility)
 raptor:
   enabled: true
   embedding_model: "sentence-transformers/all-mpnet-base-v2"

@@ -1,0 +1,240 @@
+# Configuração do Semantic Caching para RAG
+# Integração gradual e monitoramento de produção
+
+semantic_cache:
+  # Flags de controle
+  enable_semantic_cache: true
+  use_semantic_cache: true
+  
+  # Migração gradual
+  migration:
+    rollout_percentage: 100  # 0-100%, começar com 10% em produção
+    enable_fallback: true
+    parallel_testing: false
+  
+  # Cache semântico
+  semantic:
+    similarity_threshold: 0.85      # Threshold para match semântico (0.7-0.95)
+    adaptation_threshold: 0.75      # Threshold para adaptação (0.7-0.9)
+    max_memory_entries: 1000        # Cache L1 em memória
+    enable_adaptation: true         # Adaptar respostas automaticamente
+    
+    # Configuração de embeddings
+    embeddings:
+      provider: "openai"            # openai, anthropic, local
+      model: "text-embedding-3-small"  # Modelo de embedding
+      api_key: "${OPENAI_API_KEY}"  # Variável de ambiente
+      fallback_strategy: "hash"     # hash, simple, disable
+      cache_embeddings: true        # Cache local de embeddings
+      
+    # Storage semântico
+    storage:
+      db_path: "storage/semantic_cache.db"
+      enable_redis: true
+      redis_url: "${SEMANTIC_CACHE_REDIS_URL:-redis://localhost:6379}"
+      redis_prefix: "semantic_rag:"
+      backup_interval_hours: 24
+  
+  # Cache tradicional (para fallback)
+  traditional:
+    enable: true
+    max_entries: 5000
+    ttl_hours: 24
+    
+  # Regras de adaptação
+  adaptation_rules:
+    enable_contextual: true
+    enable_code_examples: true
+    enable_tutorial_enhancement: true
+    
+    # Regras customizadas
+    custom_rules:
+      - rule_id: "python_code_adaptation"
+        pattern: ".*python.*|.*código.*"
+        strategy: "template_substitution"
+        confidence_threshold: 0.75
+        template: "Adaptado para Python: {original_answer}\n\n[Contexto: {new_query}]"
+        
+      - rule_id: "tutorial_enhancement"
+        pattern: ".*como.*|.*tutorial.*|.*passo.*"
+        strategy: "contextual_enhancement"
+        confidence_threshold: 0.70
+        template: "[Tutorial adaptado para: {new_query}]"
+
+# Warming preditivo
+predictive_warming:
+  enable: true
+  auto_warming: true
+  
+  # Configuração de predições
+  prediction:
+    min_confidence: 0.6
+    max_predictions_per_entry: 5
+    prediction_strategies:
+      - "syntactic_variations"     # Variações sintáticas
+      - "semantic_expansion"       # Expansão semântica
+      - "domain_specific"          # Específico do domínio
+  
+  # Execução de warming
+  execution:
+    warming_interval_hours: 6
+    max_concurrent_warming: 3
+    warming_batch_size: 10
+    timeout_per_query_seconds: 60
+
+# Monitoramento e métricas
+monitoring:
+  # Coleta de métricas
+  metrics:
+    enable: true
+    collection_interval_seconds: 60
+    retention_hours: 24
+    export_interval_hours: 6
+    export_path: "storage/metrics/"
+    
+  # Dashboard
+  dashboard:
+    enable: true
+    refresh_interval_seconds: 5
+    web_interface: false          # Para futuras implementações
+    
+  # Alertas
+  alerts:
+    enable: true
+    alert_interval_minutes: 5
+    
+    # Thresholds para alertas
+    thresholds:
+      min_hit_rate: 0.15          # Hit rate mínimo (15%)
+      max_error_rate: 0.05        # Error rate máximo (5%)
+      min_avg_similarity: 0.70    # Similaridade média mínima
+      max_adaptation_rate: 0.30   # Adaptação máxima (30%)
+      
+    # Canais de alerta (implementar conforme necessário)
+    channels:
+      console: true
+      file: true
+      webhook: false
+      slack: false
+      email: false
+
+# Performance e otimização
+performance:
+  # Cache em memória
+  memory_optimization:
+    enable_lru_eviction: true
+    max_memory_mb: 512
+    cleanup_interval_minutes: 30
+    
+  # Otimização de embeddings
+  embedding_optimization:
+    batch_embeddings: true
+    batch_size: 10
+    embedding_cache_size: 5000
+    
+  # Database otimização
+  database_optimization:
+    enable_wal_mode: true
+    vacuum_interval_hours: 168   # Semanal
+    index_optimization: true
+    connection_pool_size: 10
+
+# Segurança
+security:
+  # Validação de input
+  input_validation:
+    max_query_length: 8000
+    sanitize_input: true
+    block_malicious_patterns: true
+    
+  # Dados sensíveis
+  data_protection:
+    anonymize_logs: true
+    encrypt_cache_data: false    # Para implementação futura
+    ttl_for_sensitive_data: 1    # 1 hora para dados sensíveis
+
+# Logs
+logging:
+  level: "INFO"                  # DEBUG, INFO, WARNING, ERROR
+  detailed_cache_logs: false     # Apenas em desenvolvimento
+  log_similarity_scores: true
+  log_adaptation_events: true
+  log_warming_events: true
+  
+  # Formatação
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Arquivos de log
+  files:
+    cache_events: "logs/semantic_cache_events.log"
+    performance: "logs/semantic_cache_performance.log"
+    errors: "logs/semantic_cache_errors.log"
+
+# Configurações específicas por ambiente
+environments:
+  development:
+    semantic_cache:
+      similarity_threshold: 0.80  # Mais permissivo
+      adaptation_threshold: 0.70
+      max_memory_entries: 100
+    monitoring:
+      collection_interval_seconds: 30
+      detailed_cache_logs: true
+    logging:
+      level: "DEBUG"
+      
+  staging:
+    migration:
+      rollout_percentage: 50      # 50% em staging
+    semantic_cache:
+      similarity_threshold: 0.83
+      max_memory_entries: 500
+    monitoring:
+      collection_interval_seconds: 45
+      
+  production:
+    migration:
+      rollout_percentage: 100     # 100% em produção após validação
+    semantic_cache:
+      similarity_threshold: 0.85  # Mais restritivo
+      adaptation_threshold: 0.75
+      max_memory_entries: 1000
+    monitoring:
+      collection_interval_seconds: 60
+      export_interval_hours: 4
+    performance:
+      max_memory_mb: 1024
+    logging:
+      level: "INFO"
+      detailed_cache_logs: false
+
+# Feature flags (para controle fino)
+feature_flags:
+  enable_experimental_features: false
+  enable_advanced_analytics: true
+  enable_ml_predictions: false    # Para implementações futuras
+  enable_distributed_cache: true
+  enable_query_preprocessing: true
+  enable_response_post_processing: true
+
+# Integração com sistemas externos
+integrations:
+  # Prometheus (para implementação futura)
+  prometheus:
+    enable: false
+    endpoint: "/metrics"
+    
+  # Grafana dashboards
+  grafana:
+    enable: false
+    dashboard_path: "dashboards/semantic_cache.json"
+    
+  # APM (Application Performance Monitoring)
+  apm:
+    enable: false
+    provider: "datadog"  # datadog, newrelic, elastic
+    
+  # Notificações
+  notifications:
+    webhook_url: "${CACHE_WEBHOOK_URL:-}"
+    slack_token: "${SLACK_BOT_TOKEN:-}" 

@@ -129,6 +129,7 @@ class QdrantVectorStore:  # pylint: disable=too-few-public-methods
 
             self.client.upsert(collection_name=self.collection_name, points=points)
             logger.info("%d documentos inseridos em '%s'", len(points), self.collection_name)
+            return True
         except Exception as err:  # pylint: disable=broad-except
             logger.error("Erro ao adicionar documentos no Qdrant: %s", err)
             return False
@@ -178,10 +179,11 @@ class QdrantVectorStore:  # pylint: disable=too-few-public-methods
 
             formatted: List[Dict[str, Any]] = []
             for hit in results:
+                payload = hit.payload or {}
                 formatted.append(
                     {
-                        "content": hit.payload.get("document", ""),
-                        "metadata": {k: v for k, v in (hit.payload or {}).items() if k != "document"},
+                        "content": payload.get("document", ""),
+                        "metadata": {k: v for k, v in payload.items() if k != "document"},
                         "distance": hit.score,
                         "id": hit.id,
                     }

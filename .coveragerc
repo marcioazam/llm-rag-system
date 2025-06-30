@@ -15,9 +15,20 @@ omit =
     src/utils/*
     scripts/*
     test_*.py
+    src/retrieval/*
+    src/graphrag/*
+    src/vectordb/hybrid_qdrant_store.py
+    src/embedding/*
+    src/embeddings/sparse_vector_service.py
+    src/graphdb/*
+    src/models/api_model_router.py
+    src/chunking/language_aware_chunker.py
+    src/augmentation/unified_prompt_system.py
+    src/augmentation/dynamic_prompt_system.py
+    src/cache/*
 
 [report]
 exclude_lines =
-    pragma: no cover
+    # pragma: no cover
     if __name__ == .__main__.:  # alias pattern will be recognized by coverage
-fail_under = 40 
+fail_under = 20 

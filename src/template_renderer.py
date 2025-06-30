@@ -7,7 +7,7 @@ It can be extended to handle additional placeholders as needed.
 """
 from typing import List
 
-__all__ = ["render_template"]
+__all__ = ["render_template", "TemplateRenderer"]
 
 
 def render_template(template: str, *, query: str, context_snippets: List[str] | None = None) -> str:
@@ -30,4 +30,21 @@ def render_template(template: str, *, query: str, context_snippets: List[str] | 
         context_block = "\n\n".join(context_snippets)
 
     rendered = rendered.replace("{{context}}", context_block)
-    return rendered 
+    return rendered
+
+
+class TemplateRenderer:
+    """Template renderer class for backward compatibility with tests."""
+    
+    def __init__(self):
+        pass
+    
+    def render(self, template: str, *, query: str, context_snippets: List[str] | None = None) -> str:
+        """Render template with given parameters."""
+        return render_template(template, query=query, context_snippets=context_snippets)
+    
+    def render_template(self, template: str, **kwargs) -> str:
+        """Render template with kwargs."""
+        query = kwargs.get('query', '')
+        context_snippets = kwargs.get('context_snippets')
+        return render_template(template, query=query, context_snippets=context_snippets) 

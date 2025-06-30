@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Query
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 import os
 import shutil
@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.api.pipeline_dependency import get_pipeline
+from src.metadata.sqlite_store import ProjectValidationError
 
 app = FastAPI(title="RAG System API", version="2.0.0")
 
@@ -26,13 +27,77 @@ class Document(BaseModel):
 
 class AddDocumentsRequest(BaseModel):
     documents: List[Document]
+    project_id: str = Field(..., min_length=1, max_length=100, description="ID do projeto (obrigatório)")
     chunking_strategy: str = 'recursive'
     chunk_size: int = 500
     chunk_overlap: int = 50
+    
+    @field_validator('project_id')
+    def validate_project_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('project_id não pode estar vazio')
+        # Remover caracteres potencialmente perigosos
+        cleaned = re.sub(r'[<>"\'/\\]', '', v.strip())
+        if len(cleaned) < 1:
+            raise ValueError('project_id inválido')
+        return cleaned
+
+# Project Models
+class CreateProjectRequest(BaseModel):
+    id: str = Field(..., min_length=1, max_length=100, description="ID único do projeto")
+    name: str = Field(..., min_length=1, max_length=200, description="Nome do projeto")
+    description: Optional[str] = Field(None, max_length=1000, description="Descrição do projeto")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Metadados customizados")
+    
+    @field_validator('id')
+    def validate_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('ID do projeto não pode estar vazio')
+        # Permitir apenas caracteres alfanuméricos, hífens e underscores
+        cleaned = re.sub(r'[^a-zA-Z0-9_-]', '', v.strip())
+        if len(cleaned) < 1:
+            raise ValueError('ID do projeto deve conter apenas letras, números, hífens e underscores')
+        return cleaned
+    
+    @field_validator('name')
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Nome do projeto não pode estar vazio')
+        return v.strip()
+
+class UpdateProjectRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200, description="Nome do projeto")
+    description: Optional[str] = Field(None, max_length=1000, description="Descrição do projeto")
+    status: Optional[str] = Field(None, description="Status do projeto")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Metadados customizados")
+    
+    @field_validator('status')
+    def validate_status(cls, v):
+        if v is not None and v not in ['active', 'inactive', 'archived']:
+            raise ValueError('Status deve ser: active, inactive ou archived')
+        return v
+
+class ProjectResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    status: str
+    created_at: str
+    updated_at: str
+    metadata: Optional[Dict[str, Any]]
+
+class ProjectStatsResponse(BaseModel):
+    total_chunks: int
+    languages_count: int
+    files_count: int
+    first_chunk_date: Optional[str]
+    last_chunk_date: Optional[str]
+    languages: Dict[str, int]
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000, description="Pergunta principal")
     query: Optional[str] = Field(None, max_length=2000, description="Compatibilidade com versão 2.0")
+    project_id: Optional[str] = Field(None, description="Filtrar por projeto específico")
     k: Optional[int] = Field(5, ge=1, le=50, description="Número de chunks a recuperar")
     system_prompt: Optional[str] = Field(None, max_length=5000, description="Prompt do sistema")
     force_use_context: Optional[bool] = Field(False, description="Forçar uso de contexto")
@@ -47,7 +112,7 @@ class QueryRequest(BaseModel):
     allow_hybrid: Optional[bool] = Field(True, description="Permitir híbrido (Cursor)")
     max_response_time: Optional[int] = Field(15, description="Timeout máximo em segundos")
     
-    @validator('question')
+    @field_validator('question')
     def validate_question(cls, v):
         if not v or not v.strip():
             raise ValueError('Pergunta não pode estar vazia')
@@ -57,16 +122,33 @@ class QueryRequest(BaseModel):
             raise ValueError('Pergunta deve ter pelo menos 3 caracteres')
         return cleaned
     
-    @validator('system_prompt')
+    @field_validator('system_prompt')
     def validate_system_prompt(cls, v):
         if v is not None:
             # Limitar tamanho e remover caracteres perigosos
             cleaned = re.sub(r'[<>]', '', v.strip())
             return cleaned if cleaned else None
         return v
+    
+    @field_validator('project_id')
+    def validate_project_id(cls, v):
+        if v is not None:
+            cleaned = re.sub(r'[^a-zA-Z0-9_-]', '', v.strip())
+            return cleaned if cleaned else None
+        return v
 
 class IndexRequest(BaseModel):
     document_paths: List[str]
+    project_id: str = Field(..., min_length=1, max_length=100, description="ID do projeto (obrigatório)")
+    
+    @field_validator('project_id')
+    def validate_project_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('project_id é obrigatório')
+        cleaned = re.sub(r'[^a-zA-Z0-9_-]', '', v.strip())
+        if len(cleaned) < 1:
+            raise ValueError('project_id inválido')
+        return cleaned
 
 class QueryResponse(BaseModel):
     answer: str
@@ -90,14 +172,146 @@ async def root():
             "Code generation with CodeLlama",
             "General responses with Llama 3.1",
             "LLM-only mode",
-            "File upload support"
+            "File upload support",
+            "Project management and isolation"
         ]
     }
+
+# ============================================================================
+# ENDPOINTS DE PROJETOS
+# ============================================================================
+
+@app.post("/projects", response_model=ProjectResponse)
+async def create_project(request: CreateProjectRequest):
+    """Criar um novo projeto"""
+    try:
+        pipeline = get_pipeline()
+        if not hasattr(pipeline, 'metadata_store'):
+            raise HTTPException(status_code=500, detail="Sistema de metadados não disponível")
+        
+        project = pipeline.metadata_store.create_project(
+            project_id=request.id,
+            name=request.name,
+            description=request.description,
+            metadata=request.metadata
+        )
+        
+        return ProjectResponse(**project)
+        
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.get("/projects", response_model=List[ProjectResponse])
+async def list_projects(
+    status: Optional[str] = Query(None, description="Filtrar por status"),
+    limit: Optional[int] = Query(None, ge=1, le=100, description="Limite de resultados"),
+    offset: int = Query(0, ge=0, description="Offset para paginação")
+):
+    """Listar projetos com filtros opcionais"""
+    try:
+        pipeline = get_pipeline()
+        if not hasattr(pipeline, 'metadata_store'):
+            raise HTTPException(status_code=500, detail="Sistema de metadados não disponível")
+        
+        projects = pipeline.metadata_store.list_projects(
+            status=status,
+            limit=limit,
+            offset=offset
+        )
+        
+        return [ProjectResponse(**project) for project in projects]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.get("/projects/{project_id}", response_model=ProjectResponse)
+async def get_project(project_id: str):
+    """Obter projeto por ID"""
+    try:
+        pipeline = get_pipeline()
+        if not hasattr(pipeline, 'metadata_store'):
+            raise HTTPException(status_code=500, detail="Sistema de metadados não disponível")
+        
+        project = pipeline.metadata_store.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail=f"Projeto '{project_id}' não encontrado")
+        
+        return ProjectResponse(**project)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.put("/projects/{project_id}", response_model=ProjectResponse)
+async def update_project(project_id: str, request: UpdateProjectRequest):
+    """Atualizar projeto existente"""
+    try:
+        pipeline = get_pipeline()
+        if not hasattr(pipeline, 'metadata_store'):
+            raise HTTPException(status_code=500, detail="Sistema de metadados não disponível")
+        
+        project = pipeline.metadata_store.update_project(
+            project_id=project_id,
+            name=request.name,
+            description=request.description,
+            status=request.status,
+            metadata=request.metadata
+        )
+        
+        return ProjectResponse(**project)
+        
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.delete("/projects/{project_id}")
+async def delete_project(project_id: str, force: bool = Query(False, description="Forçar deleção mesmo com chunks")):
+    """Deletar projeto"""
+    try:
+        pipeline = get_pipeline()
+        if not hasattr(pipeline, 'metadata_store'):
+            raise HTTPException(status_code=500, detail="Sistema de metadados não disponível")
+        
+        success = pipeline.metadata_store.delete_project(project_id, force=force)
+        
+        if success:
+            return {"message": f"Projeto '{project_id}' deletado com sucesso"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Projeto '{project_id}' não encontrado")
+        
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.get("/projects/{project_id}/stats", response_model=ProjectStatsResponse)
+async def get_project_stats(project_id: str):
+    """Obter estatísticas do projeto"""
+    try:
+        pipeline = get_pipeline()
+        if not hasattr(pipeline, 'metadata_store'):
+            raise HTTPException(status_code=500, detail="Sistema de metadados não disponível")
+        
+        stats = pipeline.metadata_store.get_project_stats(project_id)
+        return ProjectStatsResponse(**stats)
+        
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+# ============================================================================
+# ENDPOINTS MODIFICADOS COM VALIDAÇÃO DE PROJETO
+# ============================================================================
 
 # Query endpoints
 @app.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest):
-    """Executar query no sistema RAG com suporte a modo híbrido e otimizações para Cursor"""
+    """Executar query no sistema RAG com suporte a filtro por projeto"""
     import time
     start_time = time.time()
     
@@ -106,6 +320,13 @@ async def query(request: QueryRequest):
         question = request.question or request.query
         if not question:
             raise HTTPException(status_code=400, detail="Either 'question' or 'query' must be provided")
+        
+        # Validar projeto se especificado
+        if request.project_id:
+            pipeline = get_pipeline()
+            if hasattr(pipeline, 'metadata_store'):
+                if not pipeline.metadata_store.project_exists(request.project_id):
+                    raise HTTPException(status_code=400, detail=f"Projeto '{request.project_id}' não existe")
         
         # 🎯 OTIMIZAÇÃO CURSOR: Construir system prompt otimizado
         system_prompt = request.system_prompt
@@ -147,6 +368,11 @@ Foque em:
         if request.quick_mode and not request.allow_hybrid:
             use_hybrid = False  # Força modo rápido
         
+        # Preparar filtros para busca por projeto
+        filters = {}
+        if request.project_id:
+            filters["project_id"] = request.project_id
+        
         # Executar query baseado no tipo
         if request.llm_only:
             result = get_pipeline().query_llm_only(
@@ -154,6 +380,7 @@ Foque em:
                 system_prompt=system_prompt
             )
         elif hasattr(get_pipeline(), 'query') and use_hybrid:
+            # TODO: Implementar busca com filtros nos pipelines
             result = get_pipeline().query(
                 query_text=question,
                 k=k,
@@ -177,9 +404,15 @@ Foque em:
             result["processing_time"] = round(processing_time, 3)
             result["mode"] = "cursor_optimized" if (request.context or request.quick_mode) else "standard"
             result["k_used"] = k
+            if request.project_id:
+                result["project_id"] = request.project_id
         
         return result
         
+    except HTTPException:
+        raise
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -190,6 +423,13 @@ async def query_with_code(request: QueryRequest):
         question = request.question or request.query
         if not question:
             raise HTTPException(status_code=400, detail="Either 'question' or 'query' must be provided")
+        
+        # Validar projeto se especificado
+        if request.project_id:
+            pipeline = get_pipeline()
+            if hasattr(pipeline, 'metadata_store'):
+                if not pipeline.metadata_store.project_exists(request.project_id):
+                    raise HTTPException(status_code=400, detail=f"Projeto '{request.project_id}' não existe")
             
         if hasattr(get_pipeline(), 'query_with_code_examples'):
             result = get_pipeline().query_with_code_examples(
@@ -198,226 +438,286 @@ async def query_with_code(request: QueryRequest):
             )
             return QueryResponse(**result)
         else:
-            # Fallback para query normal com prompt específico para código
-            result = get_pipeline().query(
-                question=question,
-                k=request.k,
-                system_prompt="Focus on providing code examples and technical implementation details."
-            )
-            return result
+            # Fallback para query normal
+            return await query(request)
+            
+    except HTTPException:
+        raise
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Document management endpoints
 @app.post("/add_documents")
 async def add_documents(request: AddDocumentsRequest):
-    """Adiciona documentos ao sistema RAG"""
+    """Adicionar documentos ao sistema com validação de projeto"""
     try:
-        documents = [doc.dict() for doc in request.documents]
-        if hasattr(get_pipeline(), 'add_documents'):
-            get_pipeline().add_documents(
-                documents=documents,
+        # Validar se projeto existe
+        pipeline = get_pipeline()
+        if hasattr(pipeline, 'metadata_store'):
+            if not pipeline.metadata_store.project_exists(request.project_id):
+                raise HTTPException(status_code=400, detail=f"Projeto '{request.project_id}' não existe. Crie o projeto primeiro.")
+        
+        # Adicionar project_id aos metadados de cada documento
+        for doc in request.documents:
+            if doc.metadata is None:
+                doc.metadata = {}
+            doc.metadata["project_id"] = request.project_id
+        
+        result = get_pipeline().add_documents(
+            documents=[
+                {"content": doc.content, "metadata": doc.metadata or {}}
+                for doc in request.documents
+            ],
                 chunking_strategy=request.chunking_strategy,
                 chunk_size=request.chunk_size,
                 chunk_overlap=request.chunk_overlap
             )
-        else:
-            # Fallback para método de indexação tradicional
-            # Salvar documentos temporariamente e indexar
-            temp_paths = []
-            temp_dir = Path("data/temp")
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            
-            for i, doc in enumerate(documents):
-                temp_path = temp_dir / f"doc_{i}.txt"
-                with open(temp_path, 'w', encoding='utf-8') as f:
-                    f.write(doc['content'])
-                temp_paths.append(str(temp_path))
-            
-            result = get_pipeline().index_documents(temp_paths)
-            
-            # Limpar arquivos temporários
-            for path in temp_paths:
-                os.unlink(path)
-                
-            return {"message": f"Adicionados {len(documents)} documentos com sucesso", "result": result}
         
-        return {"message": f"Adicionados {len(documents)} documentos com sucesso"}
+        return {
+            "message": f"Adicionados {len(request.documents)} documentos ao projeto '{request.project_id}'",
+            "project_id": request.project_id,
+            "documents_processed": len(request.documents),
+            "chunking_strategy": request.chunking_strategy,
+            "result": result
+        }
+        
+    except HTTPException:
+        raise
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/index")
 async def index_documents(request: IndexRequest):
-    """Indexar documentos a partir de caminhos de arquivo"""
+    """Indexar documentos de paths específicos com validação de projeto"""
     try:
+        # Validar se projeto existe
+        pipeline = get_pipeline()
+        if hasattr(pipeline, 'metadata_store'):
+            if not pipeline.metadata_store.project_exists(request.project_id):
+                raise HTTPException(status_code=400, detail=f"Projeto '{request.project_id}' não existe. Crie o projeto primeiro.")
+        
+        # TODO: Implementar indexação com project_id nos pipelines
         result = get_pipeline().index_documents(request.document_paths)
-        return result
+        
+        return {
+            "message": f"Documentos indexados no projeto '{request.project_id}'",
+            "project_id": request.project_id,
+            "paths": request.document_paths,
+            "result": result
+        }
+        
+    except HTTPException:
+        raise
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    """Upload de arquivo para indexação"""
+async def upload_file(
+    file: UploadFile = File(...),
+    project_id: str = Query(..., description="ID do projeto para upload")
+):
+    """Upload de arquivo com validação de projeto"""
     try:
-        # Salvar arquivo
-        upload_dir = Path("data/raw")
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
-        file_path = upload_dir / file.filename
-
+        # Validar se projeto existe
+        pipeline = get_pipeline()
+        if hasattr(pipeline, 'metadata_store'):
+            if not pipeline.metadata_store.project_exists(project_id):
+                raise HTTPException(status_code=400, detail=f"Projeto '{project_id}' não existe. Crie o projeto primeiro.")
+        
+        # Criar diretório para o projeto se não existir
+        project_upload_dir = f"./uploads/{project_id}"
+        os.makedirs(project_upload_dir, exist_ok=True)
+        
+        # Salvar arquivo no diretório do projeto
+        file_path = os.path.join(project_upload_dir, file.filename)
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Indexar arquivo
-        result = get_pipeline().index_documents([str(file_path)])
+        # Indexar arquivo automaticamente
+        result = get_pipeline().index_documents([file_path])
 
         return {
+            "message": f"Arquivo '{file.filename}' enviado e indexado no projeto '{project_id}'",
+            "project_id": project_id,
             "filename": file.filename,
-            "path": str(file_path),
+            "file_path": file_path,
+            "file_size": os.path.getsize(file_path),
             "indexing_result": result
         }
+        
+    except HTTPException:
+        raise
+    except ProjectValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Database management endpoints
+# ============================================================================
+# ENDPOINTS EXISTENTES (mantidos para compatibilidade)
+# ============================================================================
+
 @app.delete("/index")
 async def clear_index():
-    """Limpar índice"""
+    """Limpar índice completo (cuidado: remove todos os projetos!)"""
     try:
-        if hasattr(get_pipeline(), 'clear_index'):
-            get_pipeline().clear_index()
-        elif hasattr(get_pipeline(), 'clear_database'):
-            get_pipeline().clear_database()
-        else:
-            raise HTTPException(status_code=501, detail="Clear index method not implemented")
-        return {"message": "Index cleared successfully"}
+        result = get_pipeline().clear_index()
+        return {
+            "message": "Índice limpo com sucesso",
+            "warning": "Todos os projetos e chunks foram removidos",
+            "result": result
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/clear_database")
 async def clear_database():
-    """Limpa o banco de dados vetorial"""
+    """Limpar banco de dados completo (cuidado: remove todos os projetos!)"""
     try:
-        if hasattr(get_pipeline(), 'clear_database'):
-            get_pipeline().clear_database()
-        elif hasattr(get_pipeline(), 'clear_index'):
-            get_pipeline().clear_index()
-        else:
-            raise HTTPException(status_code=501, detail="Clear database method not implemented")
-        return {"message": "Banco de dados limpo com sucesso"}
+        result = get_pipeline().clear_database()
+        return {
+            "message": "Banco de dados limpo com sucesso",
+            "warning": "Todos os projetos e dados foram removidos",
+            "result": result
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Info and stats endpoints
 @app.get("/info")
 async def get_info():
-    """Obter informações sobre o sistema"""
+    """Informações do sistema"""
     try:
+        pipeline = get_pipeline()
         info = {
-            "status": "operational",
-            "version": "2.0.0"
+            "system": "RAG System API v2.0",
+            "features": [
+                "Project management",
+                "Document indexing per project",
+                "Semantic search with project filtering",
+                "Hybrid model routing",
+                "Code generation",
+                "Project isolation"
+            ]
         }
         
-        # Tentar obter informações do vector store
-        if hasattr(get_pipeline(), 'vector_store') and hasattr(get_pipeline().vector_store, 'get_collection_info'):
-            info["vector_store"] = get_pipeline().vector_store.get_collection_info()
-        
-        # Tentar obter configurações
-        if hasattr(get_pipeline(), 'config'):
-            info["config"] = {
-                "llm_model": get_pipeline().config.get("llm", {}).get("model", "unknown"),
-                "embedding_model": get_pipeline().config.get("embeddings", {}).get("model_name", "unknown"),
-                "chunking_method": get_pipeline().config.get("chunking", {}).get("method", "unknown")
-            }
+        # Adicionar informações dos projetos se disponível
+        if hasattr(pipeline, 'metadata_store'):
+            try:
+                projects = pipeline.metadata_store.list_projects(limit=10)
+                info["projects_count"] = len(projects)
+                info["recent_projects"] = [{"id": p["id"], "name": p["name"]} for p in projects[:5]]
+            except Exception:
+                pass
         
         return info
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e), "system": "RAG System API v2.0"}
 
 @app.get("/stats")
 async def get_stats():
-    """Retorna estatísticas do sistema"""
+    """Estatísticas do sistema"""
     try:
-        stats = {}
+        pipeline = get_pipeline()
+        stats = {"system": "RAG System API v2.0"}
         
-        if hasattr(get_pipeline(), 'get_collection_stats'):
-            stats = get_pipeline().get_collection_stats()
-        
-        stats['models'] = {
-            'general': 'llama3.1:8b-instruct-q4_K_M',
-            'code': 'codellama:7b-instruct'
-        }
-        stats['version'] = '2.0.0'
-        stats['features'] = ['hybrid_mode', 'code_generation', 'file_upload']
+        # Adicionar estatísticas dos projetos se disponível
+        if hasattr(pipeline, 'metadata_store'):
+            try:
+                projects = pipeline.metadata_store.list_projects()
+                stats["total_projects"] = len(projects)
+                stats["active_projects"] = len([p for p in projects if p["status"] == "active"])
+                
+                # Estatísticas agregadas
+                total_chunks = 0
+                for project in projects:
+                    try:
+                        project_stats = pipeline.metadata_store.get_project_stats(project["id"])
+                        total_chunks += project_stats["total_chunks"]
+                    except Exception:
+                        pass
+                
+                stats["total_chunks"] = total_chunks
+            except Exception:
+                pass
         
         return stats
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e), "system": "RAG System API v2.0"}
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint aprimorado"""
-    import time
-    from datetime import datetime
-    
+    """Health check do sistema"""
     try:
-        # Verificar se o pipeline está disponível
         pipeline = get_pipeline()
-        
-        # Teste básico de funcionalidade
-        start_time = time.time()
-        test_response = pipeline.query_llm_only("health check", system_prompt="Respond with 'OK'")
-        response_time = (time.time() - start_time) * 1000
-        
-        return {
+        health = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "response_time_ms": round(response_time, 2),
-            "version": "2.0.0",
-            "hybrid_mode": "enabled",
-            "components": {
-                "api": "healthy",
-                "llm": "healthy" if test_response else "degraded",
-                "pipeline": "healthy"
-            }
+            "timestamp": "2024-01-01T00:00:00Z",
+            "version": "2.0.0"
         }
+        
+        # Verificar saúde do sistema de projetos
+        if hasattr(pipeline, 'metadata_store'):
+            try:
+                # Teste simples: listar projetos
+                pipeline.metadata_store.list_projects(limit=1)
+                health["project_system"] = "healthy"
+            except Exception as e:
+                health["project_system"] = f"unhealthy: {str(e)}"
+                health["status"] = "degraded"
+        
+        return health
+        
     except Exception as e:
         return {
             "status": "unhealthy",
-            "timestamp": datetime.utcnow().isoformat(),
             "error": str(e),
-            "version": "2.0.0",
-            "hybrid_mode": "enabled"
+            "timestamp": "2024-01-01T00:00:00Z",
+            "version": "2.0.0"
         }
 
 @app.get("/query_stream")
-async def query_stream(q: str, k: int = 5):
-    """Endpoint que faz streaming da resposta RAG em tempo real (SSE)."""
-
-    import json, asyncio
-
+async def query_stream(q: str, k: int = 5, project_id: Optional[str] = None):
+    """Stream de resposta de query com filtro opcional por projeto"""
+    try:
+        # Validar projeto se especificado
+        if project_id:
     pipeline = get_pipeline()
+            if hasattr(pipeline, 'metadata_store'):
+                if not pipeline.metadata_store.project_exists(project_id):
+                    raise HTTPException(status_code=400, detail=f"Projeto '{project_id}' não existe")
 
     async def _generator():
-        result = pipeline.query(query_text=q, k=k)
-        # chunk simples linha por linha
-        for line in result["answer"].split("\n"):
-            yield f"data: {json.dumps({'chunk': line})}\n\n"
-            await asyncio.sleep(0)
-        yield "event: end\n data: done\n\n"
+            try:
+                # TODO: Implementar streaming com filtros por projeto
+                result = get_pipeline().query(q, k=k)
+                yield f"data: {result}\n\n"
+            except Exception as e:
+                yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
-    return StreamingResponse(_generator(), media_type="text/event-stream")
+        return StreamingResponse(_generator(), media_type="text/plain")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/coverage_options")
 async def coverage_options():
-    """Retorna lista de valores únicos do campo 'coverage' presentes nos metadados."""
-    pipe = get_pipeline()
-    if not hasattr(pipe, "metadata_store") or pipe.metadata_store is None:
-        return {"coverage": []}
+    """Opções de coverage disponíveis"""
     try:
-        values = pipe.metadata_store.distinct_coverage()
-        return {"coverage": values}
-    except Exception as exc:  # pylint: disable=broad-except
-        return JSONResponse(status_code=500, content={"error": str(exc)})
+        pipeline = get_pipeline()
+        if hasattr(pipeline, 'metadata_store'):
+            options = pipeline.metadata_store.distinct_coverage()
+            return {"coverage_options": options}
+        else:
+            return {"coverage_options": []}
+    except Exception as e:
+        return {"error": str(e), "coverage_options": []}
 
 # Sistema unificado - Cursor usa endpoint /query com parâmetros específicos

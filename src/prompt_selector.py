@@ -44,19 +44,20 @@ _KEYWORD_MAP = {
         r"traceback|exception|error|stack ?trace|undefined|not found|null pointer",
     ],
     "review": [
-        r"pull request|code review|revisar (?:este )?pr|revis[aã] de c[óo]digo",
+        r"pull request|code review|revisar (?:este )?pr|revis[aã]o de c[óo]digo|review",
     ],
     "perf": [
-        r"lento|performance|lat[êe]ncia|slow|optimi[sz]e|throughput|cpu|memory",
+        r"lento|performance|lat[êe]ncia|slow|optimi[sz]e|throughput|cpu|memory|high latency|latency issues",
     ],
     "arch": [
         r"arquitetura|architecture|adr|design decision|decisão arquitetural",
     ],
-    "test": [
-        r"teste|unit test|coverage|mock|jest|pytest|cypress",
-    ],
+    # testgen deve vir ANTES de test para capturar "gerar teste" corretamente
     "testgen": [
-        r"gerar teste|criar teste|test case|cobertura",
+        r"gerar test|criar test|generate test|test case|cobertura de test|melhorar cobertura",
+    ],
+    "test": [
+        r"(?<!gerar )(?<!criar )(?<!generate )teste|unit test|coverage|mock|jest|pytest|cypress",
     ],
     "data_viz": [
         r"gr[áa]fico|plot|visualiza[çc][ãa]o|chart|histogram|scatter|line plot|bar chart",

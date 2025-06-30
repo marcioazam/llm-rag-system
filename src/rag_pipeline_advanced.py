@@ -3,7 +3,7 @@ Advanced RAG Pipeline - Integração de todas as melhorias de RAG.
 Combina Enhanced Corrective RAG, Multi-Query, GraphRAG Enhancement e Adaptive Retrieval.
 """
 
-import logging
+import logging, os
 from typing import Dict, List, Optional, Any
 import asyncio
 import time
@@ -22,10 +22,9 @@ from .retrieval.raptor_retriever import (
     RaptorRetriever,
     create_raptor_retriever,
     get_default_raptor_config,
-    ClusteringStrategy,
-    RetrievalStrategy
 )
 
+# Lazy import placeholders for potential RAPTOR integration (usable in future refactors)
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,8 @@ class AdvancedRAGPipeline(APIRAGPipeline):
     2. Multi-Query RAG - Múltiplas perspectivas
     3. Enhanced Corrective RAG - Auto-correção com T5 e decomposição
     4. Enhanced GraphRAG - Enriquecimento com grafo
-    5. Métricas e monitoramento avançado
+    5. RAPTOR Enhanced - Retrieval hierárquico otimizado
+    6. Métricas e monitoramento avançado
     """
     
     def __init__(self, config_path: Optional[str] = None):
@@ -63,7 +63,20 @@ class AdvancedRAGPipeline(APIRAGPipeline):
         # FASE 2: Sistema unificado de prompts (Dynamic + Selector)
         self.prompt_system = UnifiedPromptSystem()
         
-        # RAPTOR retriever
+        # RAPTOR Enhanced Integration opcional (flag de ambiente)
+        self.raptor_enabled = os.getenv("ENABLE_RAPTOR", "false").lower() in ("1", "true", "yes", "on")
+        if self.raptor_enabled:
+            try:
+                from src.retrieval.raptor_module import RaptorIntegration  # Lazy import
+                self.raptor = RaptorIntegration(self)
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Falha ao carregar RaptorIntegration: %s", exc)
+                self.raptor_enabled = False
+                self.raptor = None
+        else:
+            self.raptor = None
+        
+        # Legacy RAPTOR retriever (Fallback)
         self.raptor_retriever: Optional[RaptorRetriever] = None
         self.raptor_tree_built = False
         

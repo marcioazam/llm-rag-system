@@ -29,11 +29,15 @@ console = Console()
 # Instância global do pipeline reutilizada pelos comandos
 # ------------------------------------------------------------------
 
-from config import get_rag_config
+from src.config import get_cache_config
 
 rag = RAGPipeline(config_path=None)
-# Mesclar configurações do arquivo config.py (inclui Neo4j)
-rag.config.update(get_rag_config())
+# Mesclar configurações de cache
+try:
+    cache_config = get_cache_config()
+    rag.config.update(cache_config)
+except Exception:
+    pass  # Continue sem cache se houver problemas
 rag._initialize_components()
 
 @click.group()

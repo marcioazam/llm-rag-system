@@ -16,5 +16,12 @@ try:
     sys.modules.setdefault('retrieval.retriever', importlib.import_module('src.retrieval.retriever'))
     # pipeline
     sys.modules.setdefault('rag_pipeline', importlib.import_module('src.rag_pipeline'))
-except ModuleNotFoundError:
+    # prompt_selector
+    sys.modules.setdefault('prompt_selector', importlib.import_module('src.prompt_selector'))
+    
+    # Importar e exportar prompt_selector para compatibilidade
+    from .prompt_selector import select_prompt, classify_query
+    prompt_selector = importlib.import_module('src.prompt_selector')
+    
+except (ModuleNotFoundError, ImportError):
     pass

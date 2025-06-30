@@ -1,0 +1,664 @@
+"""
+Testes completos para SemanticChunkerEnhanced
+Cobrindo todos os cenários não testados para aumentar a cobertura
+"""
+import pytest
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
+import asyncio
+from src.chunking.semantic_chunker_enhanced import (
+    SemanticChunkerEnhanced, ChunkingStrategy, SimilarityMetric,
+    ChunkMetadata, SemanticBoundary
+)
+
+
+class TestChunkingStrategy:
+    """Testes para ChunkingStrategy enum"""
+    
+    def test_chunking_strategy_values(self):
+        """Testa valores do enum ChunkingStrategy"""
+        assert ChunkingStrategy.SENTENCE_BASED == "sentence_based"
+        assert ChunkingStrategy.PARAGRAPH_BASED == "paragraph_based"
+        assert ChunkingStrategy.SEMANTIC_SIMILARITY == "semantic_similarity"
+        assert ChunkingStrategy.TOPIC_MODELING == "topic_modeling"
+
+
+class TestSimilarityMetric:
+    """Testes para SimilarityMetric enum"""
+    
+    def test_similarity_metric_values(self):
+        """Testa valores do enum SimilarityMetric"""
+        assert SimilarityMetric.COSINE == "cosine"
+        assert SimilarityMetric.EUCLIDEAN == "euclidean"
+        assert SimilarityMetric.DOT_PRODUCT == "dot_product"
+        assert SimilarityMetric.MANHATTAN == "manhattan"
+
+
+class TestChunkMetadata:
+    """Testes para ChunkMetadata"""
+    
+    def test_chunk_metadata_creation(self):
+        """Testa criação de metadados de chunk"""
+        metadata = ChunkMetadata(
+            chunk_id="chunk_001",
+            start_position=0,
+            end_position=100,
+            semantic_score=0.85,
+            topic_keywords=["AI", "machine learning"],
+            sentence_count=5,
+            word_count=50
+        )
+        
+        assert metadata.chunk_id == "chunk_001"
+        assert metadata.start_position == 0
+        assert metadata.end_position == 100
+        assert metadata.semantic_score == 0.85
+        assert metadata.topic_keywords == ["AI", "machine learning"]
+        assert metadata.sentence_count == 5
+        assert metadata.word_count == 50
+        
+    def test_chunk_metadata_to_dict(self):
+        """Testa conversão para dicionário"""
+        metadata = ChunkMetadata(
+            chunk_id="test",
+            start_position=10,
+            end_position=20,
+            semantic_score=0.9
+        )
+        
+        metadata_dict = metadata.to_dict()
+        assert metadata_dict["chunk_id"] == "test"
+        assert metadata_dict["start_position"] == 10
+        assert metadata_dict["end_position"] == 20
+        assert metadata_dict["semantic_score"] == 0.9
+
+
+class TestSemanticBoundary:
+    """Testes para SemanticBoundary"""
+    
+    def test_semantic_boundary_creation(self):
+        """Testa criação de fronteira semântica"""
+        boundary = SemanticBoundary(
+            position=100,
+            confidence=0.8,
+            boundary_type="topic_shift",
+            context_before="Previous context",
+            context_after="Next context"
+        )
+        
+        assert boundary.position == 100
+        assert boundary.confidence == 0.8
+        assert boundary.boundary_type == "topic_shift"
+        assert boundary.context_before == "Previous context"
+        assert boundary.context_after == "Next context"
+        
+    def test_is_strong_boundary(self):
+        """Testa verificação de fronteira forte"""
+        strong_boundary = SemanticBoundary(50, 0.9, "topic_shift")
+        weak_boundary = SemanticBoundary(50, 0.3, "minor_shift")
+        
+        assert strong_boundary.is_strong_boundary(threshold=0.7)
+        assert not weak_boundary.is_strong_boundary(threshold=0.7)
+
+
+class TestSemanticChunkerEnhanced:
+    """Testes para SemanticChunkerEnhanced principal"""
+    
+    @pytest.fixture
+    def chunker(self):
+        with patch('src.chunking.semantic_chunker_enhanced.EmbeddingService'):
+            return SemanticChunkerEnhanced(
+                chunk_size=500,
+                overlap=50,
+                strategy=ChunkingStrategy.SEMANTIC_SIMILARITY,
+                similarity_metric=SimilarityMetric.COSINE,
+                similarity_threshold=0.7
+            )
+    
+    def test_init(self, chunker):
+        """Testa inicialização do chunker"""
+        assert chunker.chunk_size == 500
+        assert chunker.overlap == 50
+        assert chunker.strategy == ChunkingStrategy.SEMANTIC_SIMILARITY
+        assert chunker.similarity_metric == SimilarityMetric.COSINE
+        assert chunker.similarity_threshold == 0.7
+        assert chunker.embedding_service is not None
+        
+    def test_init_default_parameters(self):
+        """Testa inicialização com parâmetros padrão"""
+        with patch('src.chunking.semantic_chunker_enhanced.EmbeddingService'):
+            chunker = SemanticChunkerEnhanced()
+            assert chunker.chunk_size == 512
+            assert chunker.overlap == 50
+            assert chunker.strategy == ChunkingStrategy.SEMANTIC_SIMILARITY
+            assert chunker.similarity_metric == SimilarityMetric.COSINE
+            
+    def test_split_into_sentences(self, chunker):
+        """Testa divisão em sentenças"""
+        text = "This is the first sentence. This is the second sentence! And this is the third?"
+        sentences = chunker.split_into_sentences(text)
+        
+        assert len(sentences) == 3
+        assert sentences[0].strip() == "This is the first sentence."
+        assert sentences[1].strip() == "This is the second sentence!"
+        assert sentences[2].strip() == "And this is the third?"
+        
+    def test_split_into_paragraphs(self, chunker):
+        """Testa divisão em parágrafos"""
+        text = "First paragraph.\n\nSecond paragraph.\n\n\nThird paragraph."
+        paragraphs = chunker.split_into_paragraphs(text)
+        
+        assert len(paragraphs) >= 2  # Pelo menos 2 parágrafos não vazios
+        assert all(len(p.strip()) > 0 for p in paragraphs)
+        
+    @pytest.mark.asyncio
+    async def test_calculate_semantic_similarity(self, chunker):
+        """Testa cálculo de similaridade semântica"""
+        # Mock do embedding service
+        chunker.embedding_service.embed_text = AsyncMock(side_effect=[
+            [0.1, 0.2, 0.3],  # Embedding do texto 1
+            [0.2, 0.3, 0.4]   # Embedding do texto 2
+        ])
+        
+        text1 = "Machine learning is a subset of AI"
+        text2 = "AI includes machine learning algorithms"
+        
+        similarity = await chunker.calculate_semantic_similarity(text1, text2)
+        
+        assert 0 <= similarity <= 1
+        assert chunker.embedding_service.embed_text.call_count == 2
+        
+    def test_calculate_cosine_similarity(self, chunker):
+        """Testa cálculo de similaridade coseno"""
+        vector1 = [1, 0, 0]
+        vector2 = [0, 1, 0]
+        vector3 = [1, 0, 0]
+        
+        # Vetores ortogonais
+        similarity_orthogonal = chunker.calculate_cosine_similarity(vector1, vector2)
+        assert abs(similarity_orthogonal - 0.0) < 1e-6
+        
+        # Vetores idênticos
+        similarity_identical = chunker.calculate_cosine_similarity(vector1, vector3)
+        assert abs(similarity_identical - 1.0) < 1e-6
+        
+    def test_calculate_euclidean_similarity(self, chunker):
+        """Testa cálculo de similaridade euclidiana"""
+        vector1 = [0, 0, 0]
+        vector2 = [1, 1, 1]
+        vector3 = [0, 0, 0]
+        
+        # Vetores diferentes
+        similarity_different = chunker.calculate_euclidean_similarity(vector1, vector2)
+        assert 0 <= similarity_different <= 1
+        
+        # Vetores idênticos
+        similarity_identical = chunker.calculate_euclidean_similarity(vector1, vector3)
+        assert abs(similarity_identical - 1.0) < 1e-6
+        
+    @pytest.mark.asyncio
+    async def test_detect_semantic_boundaries(self, chunker):
+        """Testa detecção de fronteiras semânticas"""
+        sentences = [
+            "Machine learning is a powerful technology.",
+            "It can solve complex problems automatically.",
+            "The weather today is sunny and warm.",
+            "I enjoy walking in the park."
+        ]
+        
+        # Mock embeddings - primeiras duas similares, últimas duas similares
+        chunker.embedding_service.embed_text = AsyncMock(side_effect=[
+            [0.8, 0.1, 0.1],  # ML sentence 1
+            [0.7, 0.2, 0.1],  # ML sentence 2
+            [0.1, 0.8, 0.1],  # Weather sentence 1
+            [0.1, 0.7, 0.2]   # Weather sentence 2
+        ])
+        
+        boundaries = await chunker.detect_semantic_boundaries(sentences)
+        
+        assert len(boundaries) >= 1
+        assert all(isinstance(b, SemanticBoundary) for b in boundaries)
+        
+    @pytest.mark.asyncio
+    async def test_chunk_by_semantic_similarity(self, chunker):
+        """Testa chunking por similaridade semântica"""
+        text = """Machine learning is a subset of artificial intelligence. 
+        It focuses on algorithms that can learn from data. 
+        The weather today is very nice. 
+        I plan to go for a walk in the park."""
+        
+        # Mock embeddings
+        chunker.embedding_service.embed_text = AsyncMock(side_effect=[
+            [0.8, 0.1, 0.1],  # ML sentence 1
+            [0.7, 0.2, 0.1],  # ML sentence 2
+            [0.1, 0.8, 0.1],  # Weather sentence
+            [0.1, 0.7, 0.2]   # Walk sentence
+        ])
+        
+        chunks = await chunker.chunk_by_semantic_similarity(text)
+        
+        assert len(chunks) >= 1
+        assert all(isinstance(chunk, dict) for chunk in chunks)
+        assert all("content" in chunk for chunk in chunks)
+        assert all("metadata" in chunk for chunk in chunks)
+        
+    @pytest.mark.asyncio
+    async def test_chunk_by_topic_modeling(self, chunker):
+        """Testa chunking por modelagem de tópicos"""
+        text = """Machine learning algorithms can process large datasets efficiently. 
+        Neural networks are particularly good at pattern recognition.
+        The stock market showed significant volatility today.
+        Investment strategies require careful analysis of market trends."""
+        
+        with patch('src.chunking.semantic_chunker_enhanced.LatentDirichletAllocation'):
+            with patch('src.chunking.semantic_chunker_enhanced.TfidfVectorizer'):
+                chunks = await chunker.chunk_by_topic_modeling(text)
+                
+                assert len(chunks) >= 1
+                assert all("content" in chunk for chunk in chunks)
+                assert all("metadata" in chunk for chunk in chunks)
+                
+    def test_chunk_by_sentences(self, chunker):
+        """Testa chunking baseado em sentenças"""
+        text = "First sentence. Second sentence. Third sentence. Fourth sentence."
+        
+        chunks = chunker.chunk_by_sentences(text, sentences_per_chunk=2)
+        
+        assert len(chunks) >= 1
+        assert all("content" in chunk for chunk in chunks)
+        assert all("metadata" in chunk for chunk in chunks)
+        
+    def test_chunk_by_paragraphs(self, chunker):
+        """Testa chunking baseado em parágrafos"""
+        text = """First paragraph with some content.
+        
+        Second paragraph with different content.
+        
+        Third paragraph with more information."""
+        
+        chunks = chunker.chunk_by_paragraphs(text)
+        
+        assert len(chunks) >= 1
+        assert all("content" in chunk for chunk in chunks)
+        assert all("metadata" in chunk for chunk in chunks)
+        
+    @pytest.mark.asyncio
+    async def test_chunk_text_main_method(self, chunker):
+        """Testa método principal de chunking"""
+        text = "This is a test document for semantic chunking. It contains multiple sentences."
+        
+        # Mock para diferentes estratégias
+        chunker.chunk_by_sentences = Mock(return_value=[{"content": "sentence chunk", "metadata": {}}])
+        chunker.chunk_by_paragraphs = Mock(return_value=[{"content": "paragraph chunk", "metadata": {}}])
+        
+        # Testa estratégia sentence-based
+        chunker.strategy = ChunkingStrategy.SENTENCE_BASED
+        result = await chunker.chunk_text(text)
+        assert len(result) >= 1
+        chunker.chunk_by_sentences.assert_called_once()
+        
+        # Testa estratégia paragraph-based
+        chunker.strategy = ChunkingStrategy.PARAGRAPH_BASED
+        result = await chunker.chunk_text(text)
+        assert len(result) >= 1
+        chunker.chunk_by_paragraphs.assert_called_once()
+        
+    def test_create_chunk_metadata(self, chunker):
+        """Testa criação de metadados de chunk"""
+        content = "This is a test chunk with some content for testing."
+        start_pos = 10
+        end_pos = 60
+        
+        metadata = chunker.create_chunk_metadata(content, start_pos, end_pos)
+        
+        assert isinstance(metadata, ChunkMetadata)
+        assert metadata.start_position == start_pos
+        assert metadata.end_position == end_pos
+        assert metadata.word_count > 0
+        assert metadata.sentence_count > 0
+        
+    def test_extract_keywords(self, chunker):
+        """Testa extração de palavras-chave"""
+        text = "Machine learning and artificial intelligence are transforming technology."
+        
+        keywords = chunker.extract_keywords(text, max_keywords=3)
+        
+        assert len(keywords) <= 3
+        assert all(isinstance(keyword, str) for keyword in keywords)
+        assert all(len(keyword) > 0 for keyword in keywords)
+        
+    def test_calculate_semantic_score(self, chunker):
+        """Testa cálculo de score semântico"""
+        chunk_content = "This is a coherent chunk about machine learning."
+        context = "Machine learning is a subset of artificial intelligence."
+        
+        # Mock do cálculo de similaridade
+        chunker.calculate_cosine_similarity = Mock(return_value=0.85)
+        
+        score = chunker.calculate_semantic_score(chunk_content, context)
+        
+        assert 0 <= score <= 1
+        assert score == 0.85
+        
+    def test_merge_small_chunks(self, chunker):
+        """Testa fusão de chunks pequenos"""
+        chunks = [
+            {"content": "Small", "metadata": ChunkMetadata("1", 0, 5, 0.8)},
+            {"content": "Also small", "metadata": ChunkMetadata("2", 6, 16, 0.7)},
+            {"content": "This is a much larger chunk with more content", "metadata": ChunkMetadata("3", 17, 63, 0.9)}
+        ]
+        
+        merged = chunker.merge_small_chunks(chunks, min_chunk_size=20)
+        
+        # Os dois primeiros chunks pequenos devem ter sido mesclados
+        assert len(merged) <= len(chunks)
+        
+    def test_split_large_chunks(self, chunker):
+        """Testa divisão de chunks grandes"""
+        large_content = "This is a very large chunk. " * 50  # Chunk muito grande
+        chunks = [
+            {"content": large_content, "metadata": ChunkMetadata("1", 0, len(large_content), 0.8)}
+        ]
+        
+        split_chunks = chunker.split_large_chunks(chunks, max_chunk_size=100)
+        
+        # O chunk grande deve ter sido dividido
+        assert len(split_chunks) > len(chunks)
+        assert all(len(chunk["content"]) <= 150 for chunk in split_chunks)  # Com alguma tolerância
+        
+    def test_apply_overlap(self, chunker):
+        """Testa aplicação de overlap"""
+        chunks = [
+            {"content": "First chunk content", "metadata": ChunkMetadata("1", 0, 19, 0.8)},
+            {"content": "Second chunk content", "metadata": ChunkMetadata("2", 20, 40, 0.7)}
+        ]
+        
+        overlapped = chunker.apply_overlap(chunks, overlap_size=5)
+        
+        assert len(overlapped) == len(chunks)
+        # Verifica se o overlap foi aplicado (conteúdo deve ter aumentado)
+        assert len(overlapped[1]["content"]) >= len(chunks[1]["content"])
+
+
+class TestSemanticChunkerEnhancedAdvanced:
+    """Testes avançados do SemanticChunkerEnhanced"""
+    
+    @pytest.fixture
+    def advanced_chunker(self):
+        with patch('src.chunking.semantic_chunker_enhanced.EmbeddingService'):
+            return SemanticChunkerEnhanced(
+                chunk_size=1000,
+                overlap=100,
+                strategy=ChunkingStrategy.TOPIC_MODELING,
+                similarity_threshold=0.8,
+                min_chunk_size=50,
+                max_chunk_size=2000
+            )
+    
+    @pytest.mark.asyncio
+    async def test_adaptive_chunking(self, advanced_chunker):
+        """Testa chunking adaptativo baseado no conteúdo"""
+        # Texto com diferentes tipos de conteúdo
+        mixed_text = """
+        Machine learning is a method of data analysis. It automates analytical model building.
+        
+        def calculate_accuracy(predictions, labels):
+            correct = sum(p == l for p, l in zip(predictions, labels))
+            return correct / len(labels)
+            
+        The weather forecast shows rain tomorrow. Temperature will be around 15 degrees.
+        """
+        
+        # Mock para detectar diferentes tipos de conteúdo
+        advanced_chunker.detect_content_type = Mock(side_effect=["text", "code", "text"])
+        
+        chunks = await advanced_chunker.adaptive_chunk(mixed_text)
+        
+        assert len(chunks) >= 1
+        assert all("content_type" in chunk.get("metadata", {}) for chunk in chunks)
+        
+    @pytest.mark.asyncio
+    async def test_hierarchical_chunking(self, advanced_chunker):
+        """Testa chunking hierárquico"""
+        document = {
+            "content": "Long document content with multiple sections and subsections...",
+            "structure": {
+                "sections": [
+                    {"title": "Introduction", "start": 0, "end": 100},
+                    {"title": "Methods", "start": 101, "end": 300},
+                    {"title": "Results", "start": 301, "end": 500}
+                ]
+            }
+        }
+        
+        chunks = await advanced_chunker.hierarchical_chunk(document)
+        
+        assert len(chunks) >= 1
+        assert all("hierarchy_level" in chunk.get("metadata", {}) for chunk in chunks)
+        assert all("section_title" in chunk.get("metadata", {}) for chunk in chunks)
+        
+    def test_quality_assessment(self, advanced_chunker):
+        """Testa avaliação de qualidade dos chunks"""
+        chunks = [
+            {"content": "High quality chunk with coherent content about machine learning.", "metadata": {}},
+            {"content": "Low qual", "metadata": {}},  # Chunk muito pequeno
+            {"content": "Random words without coherence: apple car blue mountain", "metadata": {}}
+        ]
+        
+        assessed_chunks = advanced_chunker.assess_chunk_quality(chunks)
+        
+        assert len(assessed_chunks) == len(chunks)
+        assert all("quality_score" in chunk["metadata"] for chunk in assessed_chunks)
+        assert all(0 <= chunk["metadata"]["quality_score"] <= 1 for chunk in assessed_chunks)
+        
+    @pytest.mark.asyncio
+    async def test_context_aware_chunking(self, advanced_chunker):
+        """Testa chunking consciente do contexto"""
+        text = "Machine learning algorithms. Deep learning networks. Stock market analysis. Investment strategies."
+        context = {"domain": "technology", "previous_chunks": ["AI and ML introduction"]}
+        
+        # Mock para usar contexto
+        advanced_chunker.embedding_service.embed_text = AsyncMock(return_value=[0.1, 0.2, 0.3])
+        
+        chunks = await advanced_chunker.context_aware_chunk(text, context)
+        
+        assert len(chunks) >= 1
+        assert all("context_relevance" in chunk.get("metadata", {}) for chunk in chunks)
+        
+    def test_chunk_optimization(self, advanced_chunker):
+        """Testa otimização de chunks"""
+        suboptimal_chunks = [
+            {"content": "A", "metadata": ChunkMetadata("1", 0, 1, 0.3)},  # Muito pequeno
+            {"content": "B" * 3000, "metadata": ChunkMetadata("2", 2, 3002, 0.9)},  # Muito grande
+            {"content": "Good chunk size", "metadata": ChunkMetadata("3", 3003, 3018, 0.8)}
+        ]
+        
+        optimized = advanced_chunker.optimize_chunks(suboptimal_chunks)
+        
+        # Deve ter corrigido problemas de tamanho
+        assert all(
+            advanced_chunker.min_chunk_size <= len(chunk["content"]) <= advanced_chunker.max_chunk_size
+            for chunk in optimized
+            if chunk["content"].strip()  # Ignora chunks vazios
+        )
+        
+    @pytest.mark.asyncio
+    async def test_multi_strategy_chunking(self, advanced_chunker):
+        """Testa chunking com múltiplas estratégias"""
+        text = "Document with mixed content types and structures."
+        
+        strategies = [
+            ChunkingStrategy.SENTENCE_BASED,
+            ChunkingStrategy.SEMANTIC_SIMILARITY,
+            ChunkingStrategy.TOPIC_MODELING
+        ]
+        
+        results = {}
+        for strategy in strategies:
+            advanced_chunker.strategy = strategy
+            chunks = await advanced_chunker.chunk_text(text)
+            results[strategy] = chunks
+            
+        # Cada estratégia deve produzir resultados
+        assert all(len(chunks) > 0 for chunks in results.values())
+        
+        # Combina resultados de múltiplas estratégias
+        combined = advanced_chunker.combine_strategy_results(list(results.values()))
+        assert len(combined) >= 1
+
+
+class TestSemanticChunkerEnhancedEdgeCases:
+    """Testes de casos extremos"""
+    
+    @pytest.fixture
+    def chunker(self):
+        with patch('src.chunking.semantic_chunker_enhanced.EmbeddingService'):
+            return SemanticChunkerEnhanced()
+    
+    @pytest.mark.asyncio
+    async def test_empty_text(self, chunker):
+        """Testa texto vazio"""
+        chunks = await chunker.chunk_text("")
+        assert chunks == []
+        
+    @pytest.mark.asyncio
+    async def test_single_sentence(self, chunker):
+        """Testa texto com uma única sentença"""
+        text = "This is a single sentence."
+        chunks = await chunker.chunk_text(text)
+        
+        assert len(chunks) >= 1
+        assert chunks[0]["content"].strip() == text.strip()
+        
+    @pytest.mark.asyncio
+    async def test_very_long_text(self, chunker):
+        """Testa texto muito longo"""
+        long_text = "This is a sentence. " * 1000  # Texto muito longo
+        
+        chunks = await chunker.chunk_text(long_text)
+        
+        assert len(chunks) > 1  # Deve ser dividido em múltiplos chunks
+        assert all(len(chunk["content"]) <= chunker.chunk_size * 2 for chunk in chunks)  # Com tolerância
+        
+    def test_special_characters(self, chunker):
+        """Testa texto com caracteres especiais"""
+        text = "Text with émojis 🚀 and spëcial cháracters! @#$%^&*()"
+        sentences = chunker.split_into_sentences(text)
+        
+        assert len(sentences) >= 1
+        assert any("🚀" in sentence for sentence in sentences)
+        
+    @pytest.mark.asyncio
+    async def test_mixed_languages(self, chunker):
+        """Testa texto com idiomas misturados"""
+        mixed_text = "English text. Texto em português. 中文文本。"
+        
+        chunks = await chunker.chunk_text(mixed_text)
+        
+        assert len(chunks) >= 1
+        assert all("content" in chunk for chunk in chunks)
+        
+    @pytest.mark.asyncio
+    async def test_embedding_service_failure(self, chunker):
+        """Testa falha do serviço de embedding"""
+        text = "Test text for embedding failure."
+        
+        # Mock falha do serviço
+        chunker.embedding_service.embed_text = AsyncMock(side_effect=Exception("Service unavailable"))
+        
+        # Deve usar fallback para estratégia baseada em sentenças
+        chunks = await chunker.chunk_text(text)
+        
+        assert len(chunks) >= 1  # Deve funcionar mesmo com falha do embedding
+        
+    def test_zero_similarity_threshold(self, chunker):
+        """Testa threshold de similaridade zero"""
+        chunker.similarity_threshold = 0.0
+        
+        # Com threshold zero, tudo deve ser considerado similar
+        similar = chunker.calculate_cosine_similarity([1, 0], [0, 1])  # Vetores ortogonais
+        assert chunker.is_similar_enough(similar)
+        
+    def test_max_similarity_threshold(self, chunker):
+        """Testa threshold de similaridade máximo"""
+        chunker.similarity_threshold = 1.0
+        
+        # Com threshold 1.0, apenas vetores idênticos são similares
+        similar = chunker.calculate_cosine_similarity([1, 0], [1, 0])  # Vetores idênticos
+        not_similar = chunker.calculate_cosine_similarity([1, 0], [0.9, 0.1])  # Quase idênticos
+        
+        assert chunker.is_similar_enough(similar)
+        assert not chunker.is_similar_enough(not_similar)
+
+
+class TestSemanticChunkerEnhancedIntegration:
+    """Testes de integração completos"""
+    
+    @pytest.mark.asyncio
+    async def test_complete_workflow(self):
+        """Testa fluxo completo de chunking semântico"""
+        # Documento complexo com diferentes seções
+        document = """
+        # Introduction to Machine Learning
+        
+        Machine learning is a subset of artificial intelligence that focuses on algorithms
+        that can learn from and make predictions on data.
+        
+        ## Types of Machine Learning
+        
+        There are three main types of machine learning:
+        1. Supervised learning
+        2. Unsupervised learning  
+        3. Reinforcement learning
+        
+        ## Applications
+        
+        Machine learning has many applications in various fields including:
+        - Healthcare diagnosis
+        - Financial fraud detection
+        - Natural language processing
+        - Computer vision
+        
+        # Conclusion
+        
+        Machine learning continues to evolve and find new applications across industries.
+        """
+        
+        with patch('src.chunking.semantic_chunker_enhanced.EmbeddingService') as mock_service:
+            # Mock do serviço de embedding
+            mock_service.return_value.embed_text = AsyncMock(return_value=[0.1, 0.2, 0.3])
+            
+            chunker = SemanticChunkerEnhanced(
+                chunk_size=200,
+                overlap=20,
+                strategy=ChunkingStrategy.SEMANTIC_SIMILARITY,
+                similarity_threshold=0.7
+            )
+            
+            # Executa chunking
+            chunks = await chunker.chunk_text(document)
+            
+            # Verifica resultados
+            assert len(chunks) >= 3  # Deve haver múltiplos chunks
+            
+            # Verifica estrutura dos chunks
+            for chunk in chunks:
+                assert "content" in chunk
+                assert "metadata" in chunk
+                assert isinstance(chunk["metadata"], dict)
+                assert len(chunk["content"].strip()) > 0
+                
+            # Verifica metadados
+            assert all("chunk_id" in chunk["metadata"] for chunk in chunks)
+            assert all("start_position" in chunk["metadata"] for chunk in chunks)
+            assert all("end_position" in chunk["metadata"] for chunk in chunks)
+            
+            # Verifica ordem dos chunks
+            positions = [chunk["metadata"]["start_position"] for chunk in chunks]
+            assert positions == sorted(positions)  # Deve estar em ordem
+            
+            # Verifica cobertura completa do documento
+            total_coverage = sum(
+                chunk["metadata"]["end_position"] - chunk["metadata"]["start_position"]
+                for chunk in chunks
+            )
+            assert total_coverage >= len(document.strip())  # Com overlap pode ser maior 

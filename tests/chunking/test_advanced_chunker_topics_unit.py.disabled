@@ -1,0 +1,33 @@
+import importlib, sys, types
+
+# Stubs similar to structural unit
+stub_modules = {
+    "src.preprocessing.intelligent_preprocessor": {"IntelligentPreprocessor": object},
+    "src.chunking.recursive_chunker": {"RecursiveChunker": lambda *a, **k: types.SimpleNamespace(chunk_text=lambda txt: [txt])},
+    "src.chunking.semantic_chunker_enhanced": {"EnhancedSemanticChunker": lambda *a, **k: types.SimpleNamespace(chunk=lambda text, metadata: [])},
+}
+for m, attrs in stub_modules.items():
+    mod = types.ModuleType(m)
+    for k, v in attrs.items():
+        setattr(mod, k, v)
+    sys.modules[m] = mod
+
+adv_mod = importlib.import_module("src.chunking.advanced_chunker")
+AdvancedChunker = adv_mod.AdvancedChunker
+
+class _ES:
+    def embed_texts(self, texts, show_progress=False):
+        return [[0.1]] * len(texts)
+
+chunker = AdvancedChunker(_ES(), max_chunk_size=100)
+
+def test_topic_based_fallback():
+    doc = {"content": "texto exemplo", "metadata": {}}
+    out = chunker.topic_based_chunk(doc)
+    assert isinstance(out, list)
+
+
+def test_entity_aware_fallback():
+    doc = {"content": "texto exemplo", "metadata": {}}
+    out = chunker.entity_aware_chunk(doc)
+    assert isinstance(out, list) 

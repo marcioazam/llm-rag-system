@@ -671,5 +671,5 @@ class EnhancedTreeSitterAnalyzer(BaseStaticAnalyzer):
                 "line": import_info["line"]
             })
             
-        return relations        #   I m p l e m e n t a ç ã o   d a   i n t e r f a c e   b a s e  
- 
+        return relations    # Implementao da interface base
+

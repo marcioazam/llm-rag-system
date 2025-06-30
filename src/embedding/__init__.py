@@ -1,0 +1,1 @@
+# Pacote de utilidades para serviços de embedding 

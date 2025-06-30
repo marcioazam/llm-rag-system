@@ -1,0 +1,91 @@
+import asyncio
+import types
+import sys
+import pytest
+
+# --------------------------------------------------------------------
+# Monkeypatch helper
+# --------------------------------------------------------------------
+
+def _inject_prompt_selector_stub(monkeypatch):
+    selector_mod = types.ModuleType("src.prompt_selector")
+
+    def classify_query(query):  # noqa: D401
+        return "bugfix"
+
+    def select_prompt(query, depth="quick"):
+        template = "Você é um assistente especialista.\n\nPergunta: {query}\nResposta:"
+        return "stub_template", template
+
+    selector_mod.classify_query = classify_query  # type: ignore
+    selector_mod.select_prompt = select_prompt  # type: ignore
+    sys.modules["src.prompt_selector"] = selector_mod
+
+
+def _inject_dynamic_prompt_stub(monkeypatch):
+    dyn_mod = types.ModuleType("src.augmentation.dynamic_prompt_system")
+
+    class _StubDynamic:  # noqa: D401
+        def __init__(self):
+            pass
+            
+        def generate_prompt(self, query, context_chunks, task_type, language):  # noqa: D401
+            ctx = " | ".join(context_chunks)
+            return f"[SYS] ({task_type}) {language}\nCTX:{ctx}\nQ:{query}\nA:"
+            
+        def _needs_reasoning(self, query, task_type):  # noqa: D401
+            return task_type in ["reasoning", "analysis", "explanation"]
+
+    dyn_mod.DynamicPromptSystem = _StubDynamic  # type: ignore
+    sys.modules["src.augmentation.dynamic_prompt_system"] = dyn_mod
+
+
+@pytest.fixture(autouse=True)
+def stubs(monkeypatch):
+    _inject_prompt_selector_stub(monkeypatch)
+    _inject_dynamic_prompt_stub(monkeypatch)
+    yield
+
+
+@pytest.mark.asyncio
+async def test_generate_optimal_prompt_flow():
+    from src.augmentation.unified_prompt_system import UnifiedPromptSystem  # import after stubs
+
+    ups = UnifiedPromptSystem()
+
+    query = "Corrigir erro de NullPointerException"
+    ctx = [
+        "Stack trace aponta para linha 42.",
+        "Método process_data é chamado sem verificar null.",
+    ]
+
+    result = await ups.generate_optimal_prompt(query, ctx, language="Português", depth="quick")
+
+    # Checagens principais
+    assert result.task_type == "bugfix"
+    assert result.template_id == "stub_template"
+    assert result.prompt_source == "template"
+
+    # O prompt final deve conter merge entre template e dynamic (marcas SYS e Pergunta)
+    assert "Você é um assistente especialista" in result.final_prompt
+    assert "CTX:" in result.final_prompt
+    assert "Pergunta: Corrigir erro" in result.final_prompt
+    assert result.metadata["context_chunks_used"] == 2
+
+
+@pytest.mark.asyncio
+async def test_dynamic_fallback(monkeypatch):
+    """Força exceção em select_prompt para acionar dynamic fallback."""
+    _inject_prompt_selector_stub(monkeypatch)
+
+    # Monkeypatch para lançar exceção
+    import src.prompt_selector as ps  # type: ignore
+    monkeypatch.setattr(ps, "select_prompt", lambda *_, **__: (_ for _ in ()).throw(RuntimeError("fail")))
+
+    from src.augmentation.unified_prompt_system import UnifiedPromptSystem  # reload using stub dynamic
+    ups = UnifiedPromptSystem()
+
+    result = await ups.generate_optimal_prompt("Teste", [], language="Português")
+
+    assert result.prompt_source == "dynamic"
+    assert result.template_id == "dynamic_fallback" 

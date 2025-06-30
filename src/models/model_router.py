@@ -121,64 +121,59 @@ class ModelRouter:
 
     def generate_hybrid_response(self, query: str, context: str,
                                retrieved_docs: List[str]) -> str:
-        """Gera resposta híbrida usando múltiplos modelos quando necessário"""
+        """Gera resposta híbrida usando múltiplos modelos quando necessário.
 
-        docs_context = "\n\n".join([f"Documento {i+1}: {doc}"
-                                   for i, doc in enumerate(retrieved_docs)])
+        Regras revisadas:
+        1. Sempre gera uma primeira resposta *general* com possíveis marcadores.
+        2. Substitui marcadores [CÓDIGO: descrição] **mesmo que** `detect_code_need` não detecte
+           necessidade de código-geração (corrige falha de testes).
+        3. Retorna resposta final com trechos de código dentro de blocos ```python```.
+        """
 
-        needs_code = self.detect_code_need(query, docs_context)
+        docs_context = "\n\n".join(
+            [f"Documento {i+1}: {doc}" for i, doc in enumerate(retrieved_docs)]
+        )
 
-        if not needs_code:
-            prompt = f"""Com base no contexto fornecido, responda a seguinte pergunta:
+        # Prompt principal (explicação + marcadores)
+        base_prompt = (
+            "Com base no contexto fornecido, responda a seguinte pergunta.\n"
+            "Quando mencionar que vai mostrar código ou exemplos, use marcadores como [CÓDIGO: descrição]\n"
+            "mas NÃO gere o código em si.\n\n"
+            f"Contexto:\n{docs_context}\n\nPergunta: {query}\n\nResposta:"
+        )
 
-Contexto:
-{docs_context}
+        # 1️⃣ Gera resposta base usando modelo general
+        general_response = self.generate_with_model(base_prompt, "general")
 
-Pergunta: {query}
+        # 2️⃣ Procura por marcadores de código na resposta gerada
+        code_markers = list(re.finditer(r"\[CÓDIGO:\s*([^\]]+)\]", general_response))
 
-Resposta:"""
-            return self.generate_with_model(prompt, 'general')
+        # Se não houver marcadores, devolve resposta tal como está
+        if not code_markers:
+            return general_response
 
-        # Resposta híbrida
-        general_prompt = f"""Com base no contexto fornecido, responda a seguinte pergunta.
-Quando mencionar que vai mostrar código ou exemplos, use marcadores como [CÓDIGO: descrição]
-mas NÃO gere o código em si.
-
-Contexto:
-{docs_context}
-
-Pergunta: {query}
-
-Resposta:"""
-
-        general_response = self.generate_with_model(general_prompt, 'general')
-
-        # Identifica onde inserir código
-        code_markers = re.finditer(r'\[CÓDIGO:\s*([^\]]+)\]', general_response)
         final_response = general_response
 
+        # 3️⃣ Para cada marcador, gera o trecho de código correspondente
         for marker in code_markers:
             description = marker.group(1)
 
-            code_prompt = f"""Gere APENAS o código solicitado, sem explicações adicionais.
-Requisito: {description}
-Contexto da pergunta original: {query}
-
-Código:"""
-
-            code_system_prompt = """Você é um assistente especializado em programação.
-Gere código limpo, bem comentado e seguindo as melhores práticas.
-Sempre inclua comentários explicativos em português."""
-
-            generated_code = self.generate_with_model(
-                code_prompt,
-                'code',
-                code_system_prompt
+            code_prompt = (
+                "Gere APENAS o código solicitado, sem explicações adicionais.\n"
+                f"Requisito: {description}\n"
+                f"Contexto da pergunta original: {query}\n\nCódigo:"
             )
 
+            code_system_prompt = (
+                "Você é um assistente especializado em programação.\n"
+                "Gere código limpo, bem comentado e seguindo as melhores práticas.\n"
+                "Sempre inclua comentários explicativos em português."
+            )
+
+            generated_code = self.generate_with_model(code_prompt, "code", code_system_prompt)
+
             final_response = final_response.replace(
-                marker.group(0),
-                f"\n\n```python\n{generated_code}\n```\n"
+                marker.group(0), f"\n\n```python\n{generated_code}\n```\n"
             )
 
         return final_response
@@ -335,59 +330,65 @@ Pergunta: {query}"""
         result['sections']['main'] = base_response
         result['models_used'].append(self.models[base_model]['name'])
 
-        # Processa códigos
-        if TaskType.CODE_GENERATION in tasks:
+        # ------------------------------------------------------------
+        # Processamento de marcadores de CÓDIGO independentemente das tarefas
+        # ------------------------------------------------------------
+        code_markers = list(re.finditer(r"\[CÓDIGO:\s*([^\]]+)\]", base_response))
+        if code_markers:
             code_model = self.select_best_model(TaskType.CODE_GENERATION)
-            code_markers = re.finditer(r'\[CÓDIGO:\s*([^\]]+)\]', base_response)
-
             for marker in code_markers:
                 description = marker.group(1)
-                code_prompt = f"""Gere o código solicitado:
-Requisito: {description}
-Contexto: {query}
-
-Código limpo e bem comentado:"""
+                code_prompt = (
+                    "Gere o código solicitado:\n"
+                    f"Requisito: {description}\n"
+                    f"Contexto: {query}\n\nCódigo limpo e bem comentado:"
+                )
 
                 generated_code = self.generate_with_model(
                     code_prompt,
                     code_model,
-                    "Você é um expert em programação. Gere código limpo e eficiente."
+                    "Você é um expert em programação. Gere código limpo e eficiente.",
                 )
 
                 base_response = base_response.replace(
-                    marker.group(0),
-                    f"\n\n```python\n{generated_code}\n```\n"
+                    marker.group(0), f"\n\n```python\n{generated_code}\n```\n"
                 )
 
             if code_model and self.models[code_model]['name'] not in result['models_used']:
                 result['models_used'].append(self.models[code_model]['name'])
 
-        # Processa SQL
-        if TaskType.SQL_QUERY in tasks:
-            sql_model = self.select_best_model(TaskType.SQL_QUERY)
-            sql_markers = re.finditer(r'\[SQL:\s*([^\]]+)\]', base_response)
+            if code_markers and 'code_generation' not in result['tasks_performed']:
+                result['tasks_performed'].append(TaskType.CODE_GENERATION.value)
 
+        # ------------------------------------------------------------
+        # Processamento de marcadores de SQL independentemente das tarefas
+        # ------------------------------------------------------------
+        sql_markers = list(re.finditer(r"\[SQL:\s*([^\]]+)\]", base_response))
+        if sql_markers:
+            sql_model = self.select_best_model(TaskType.SQL_QUERY)
             for marker in sql_markers:
                 description = marker.group(1)
-                sql_prompt = f"""Gere a query SQL:
-Requisito: {description}
-Contexto: {query}
-
-SQL:"""
+                sql_prompt = (
+                    "Gere a query SQL:\n"
+                    f"Requisito: {description}\n"
+                    f"Contexto: {query}\n\nSQL:"
+                )
 
                 generated_sql = self.generate_with_model(
                     sql_prompt,
                     sql_model,
-                    "Você é um especialista em SQL. Gere queries otimizadas."
+                    "Você é um especialista em SQL. Gere queries otimizadas.",
                 )
 
                 base_response = base_response.replace(
-                    marker.group(0),
-                    f"\n\n```sql\n{generated_sql}\n```\n"
+                    marker.group(0), f"\n\n```sql\n{generated_sql}\n```\n"
                 )
 
             if sql_model and self.models[sql_model]['name'] not in result['models_used']:
                 result['models_used'].append(self.models[sql_model]['name'])
+
+            if sql_markers and 'sql_query' not in result['tasks_performed']:
+                result['tasks_performed'].append(TaskType.SQL_QUERY.value)
 
         result['answer'] = base_response
         return result

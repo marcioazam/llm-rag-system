@@ -150,6 +150,9 @@ logs/
 *.log
 *.log.*
 
+# Storage
+storage/
+
 # Cache
 .cache/
 *.cache
