@@ -15,7 +15,7 @@ from src.retrieval.enhanced_corrective_rag import EnhancedCorrectiveRAG, create_
 from src.retrieval.multi_query_rag import MultiQueryRAG
 from src.retrieval.adaptive_retriever import AdaptiveRetriever
 from src.graphrag.enhanced_graph_rag import EnhancedGraphRAG
-from src.cache.optimized_rag_cache import OptimizedRAGCache
+from src.cache.semantic_cache_integration import create_integrated_cache_system
 from src.models.model_router import ModelRouter
 from src.augmentation.unified_prompt_system import UnifiedPromptSystem
 from .retrieval.raptor_retriever import (
@@ -119,6 +119,7 @@ class AdvancedRAGPipeline(APIRAGPipeline):
             "avg_confidence": 0.0,
             "avg_processing_time": 0.0,
             "cache_hit_rate": 0.0,  # FASE 1: Taxa de cache hits
+            "cache_stats": {}, # FASE 2: Estatísticas detalhadas do cache
             "enhanced_corrective_success_rate": 0.0,
             "api_provider_usage": {},
             "components": {
@@ -139,22 +140,21 @@ class AdvancedRAGPipeline(APIRAGPipeline):
         }
     
     async def _initialize_cache(self):
-        """Inicializa o cache híbrido otimizado se ainda não foi inicializado"""
+        """Inicializa o sistema de cache integrado (tradicional + semântico)."""
         if self.cache is None and self.advanced_config["enable_cache"]:
             try:
-                # FASE 2: Cache otimizado com configuração automática via .env
-                self.cache = OptimizedRAGCache()
-                logger.info("✅ Cache híbrido otimizado inicializado com sucesso")
+                # Usa a factory para criar o sistema de cache integrado
+                self.cache = create_integrated_cache_system()
+                await self.cache.initialize() # Chama o inicializador async
+                logger.info("✅ Sistema de Cache Integrado (Tradicional + Semântico) inicializado.")
                 
                 # Log das configurações carregadas
-                if hasattr(self.cache, 'enable_redis'):
-                    redis_status = "habilitado" if self.cache.enable_redis else "desabilitado"
-                    logger.info(f"   Redis: {redis_status}")
-                    logger.info(f"   Max memory entries: {self.cache.max_memory_entries}")
-                    logger.info(f"   DB path: {self.cache.db_path}")
-                
+                stats = self.cache.get_stats()
+                logger.info(f"   - Cache Tradicional: {'Habilitado' if stats.get('traditional_cache_stats') else 'Desabilitado'}")
+                logger.info(f"   - Cache Semântico: {'Habilitado' if stats.get('semantic_cache_stats') else 'Desabilitado'}")
+
             except Exception as e:
-                logger.warning(f"⚠️ Erro ao inicializar cache otimizado: {e}")
+                logger.warning(f"⚠️ Erro ao inicializar o Sistema de Cache Integrado: {e}")
                 self.cache = None
     
     async def _initialize_enhanced_corrective_rag(self):
@@ -464,10 +464,10 @@ class AdvancedRAGPipeline(APIRAGPipeline):
         await self._initialize_enhanced_corrective_rag()
         
         # FASE 3: Verificar cache híbrido otimizado primeiro
-        cache_result = None
         if self.cache and self.advanced_config["enable_cache"]:
-            cache_result, cache_source, metadata = await self.cache.get(question)
-            if cache_result:
+            cache_hit = await self.cache.get(question)
+            
+            if cache_hit.source != "none":
                 self.metrics["improvements_usage"]["cache"] += 1
                 self.metrics["cache_hit_rate"] = (
                     self.metrics["improvements_usage"]["cache"] / 
@@ -475,23 +475,22 @@ class AdvancedRAGPipeline(APIRAGPipeline):
                 )
                 
                 # Log detalhado do cache hit
-                confidence = metadata.get("confidence", 0.0)
-                age = metadata.get("age", 0.0)
-                access_count = metadata.get("access_count", 0)
+                confidence = cache_hit.confidence
+                source = cache_hit.source
                 
-                logger.info(f"🎯 Cache HIT ({cache_source}): confidence={confidence:.2f}, age={age:.1f}s, accessed={access_count}x")
+                logger.info(f"🎯 Cache HIT ({source}): confidence={confidence:.2f}")
                 
                 # Adicionar metadados de cache na resposta
-                if isinstance(cache_result, dict):
-                    cache_result["cache_metadata"] = {
-                        "source": cache_source,
+                if isinstance(cache_hit.content, dict):
+                    cache_hit.content["cache_metadata"] = {
+                        "source": source,
                         "confidence": confidence,
-                        "age": age,
-                        "access_count": access_count,
-                        "cache_hit": True
+                        "cache_hit": True,
+                        "tokens_saved": cache_hit.tokens_saved,
+                        "cost_saved": cache_hit.cost_saved
                     }
                 
-                return cache_result
+                return cache_hit.content
         
         # Mesclar configurações
         query_config = {**self.advanced_config}
@@ -908,18 +907,9 @@ class AdvancedRAGPipeline(APIRAGPipeline):
         # FASE 2: Estatísticas detalhadas do cache híbrido otimizado
         if self.cache:
             try:
-                cache_stats = self.cache.get_stats()
-                base_stats["cache_metrics"] = {
-                    **cache_stats,
-                    "efficiency_summary": {
-                        "total_savings": f"${cache_stats.get('cost_savings', 0):.4f}",
-                        "time_saved_minutes": cache_stats.get('processing_time_saved', 0) / 60,
-                        "tokens_saved_formatted": f"{cache_stats.get('tokens_saved', 0):,}",
-                        "hit_rate_percentage": f"{cache_stats.get('hit_rate', 0):.1%}",
-                        "avg_confidence": f"{cache_stats.get('avg_confidence', 0):.2f}"
-                    }
-                }
-                logger.debug(f"Cache stats: hit_rate={cache_stats.get('hit_rate', 0):.1%}, tokens_saved={cache_stats.get('tokens_saved', 0)}")
+                # O IntegratedCacheSystem já formata as estatísticas de forma detalhada
+                base_stats["cache_metrics"] = self.cache.get_stats()
+                logger.debug(f"Cache stats: {base_stats['cache_metrics']}")
             except Exception as e:
                 logger.warning(f"Erro ao obter estatísticas do cache: {e}")
         

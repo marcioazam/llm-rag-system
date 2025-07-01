@@ -1,0 +1,19 @@
+# Configuração de busca híbrida – valores iniciais recomendados
+# Ajuste conforme necessário para ambiente de produção
+
+hybrid_search:
+  # Pesos relativos entre BM25 (busca lexical) e embeddings (busca densa)
+  bm25_weight: 0.35
+  dense_weight: 0.65
+
+  # Número máximo de chunks retornados ao usuário
+  top_k: 8
+
+  # Parâmetros do MMR (Maximal Marginal Relevance)
+  mmr:
+    lambda: 0.25   # 0 → só relevância; 1 → só diversidade
+    k: 25          # candidatos iniciais a serem rerankeados
+
+  # Filtros adicionais
+  filters:
+    min_score: 0.12  # descarta itens com score agregado abaixo desse valor 

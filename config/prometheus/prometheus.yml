@@ -1,0 +1,135 @@
+# ============================================================================
+# CONFIGURAÇÃO PROMETHEUS - RAG SYSTEM
+# ============================================================================
+# Configuração para monitoramento de métricas do sistema RAG LLM
+# ============================================================================
+
+global:
+  scrape_interval: 15s     # Intervalo de coleta padrão
+  evaluation_interval: 15s # Intervalo de avaliação de regras
+  external_labels:
+    cluster: 'rag-system'
+    environment: 'production'
+
+# Configuração de alerta (se necessário)
+rule_files:
+  # - "rules/*.yml"
+
+# Configuração do AlertManager (opcional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Configurações de scraping (coleta de métricas)
+scrape_configs:
+  # ============================================================================
+  # PROMETHEUS SELF-MONITORING
+  # ============================================================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # ============================================================================
+  # RAG API PRINCIPAL
+  # ============================================================================
+  - job_name: 'rag-api'
+    static_configs:
+      - targets: ['rag-app:8000']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # ============================================================================
+  # QDRANT VECTOR DATABASE
+  # ============================================================================
+  - job_name: 'qdrant'
+    static_configs:
+      - targets: ['qdrant:6333']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # ============================================================================
+  # NEO4J GRAPH DATABASE  
+  # ============================================================================
+  - job_name: 'neo4j'
+    static_configs:
+      - targets: ['neo4j:2004']  # JMX metrics port
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # ============================================================================
+  # REDIS CACHE
+  # ============================================================================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    
+  # ============================================================================
+  # NODE EXPORTER (SISTEMA OPERACIONAL)
+  # ============================================================================
+  # Descomente se adicionar node_exporter ao docker-compose
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #   scrape_interval: 30s
+  #   metrics_path: /metrics
+
+  # ============================================================================
+  # DOCKER CONTAINER METRICS
+  # ============================================================================
+  # Descomente se adicionar cAdvisor ao docker-compose
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+  #   scrape_interval: 30s
+  #   metrics_path: /metrics
+
+# =========================================================================
+# CONFIGURAÇÕES DE ARMAZENAMENTO (removido - configurado por flags)
+# =========================================================================
+# storage:
+#   tsdb:
+#     path: /prometheus
+#     retention.time: 200h    # 8+ dias de retenção
+#     retention.size: 10GB    # Máximo 10GB de dados
+#     min-block-duration: 2h  # Blocos mínimos de 2h
+#     max-block-duration: 25h # Blocos máximos de 25h
+#     wal-compression: true   # Compressão WAL ativada
+
+# =========================================================================
+# CONFIGURAÇÕES DE CONSULTA (removido)
+# =========================================================================
+# query:
+#   timeout: 2m               # Timeout de consultas
+#   max_concurrency: 20       # Máximo de consultas concorrentes
+#   max_samples: 50000000     # Máximo de amostras por consulta
+#   lookback-delta: 5m        # Delta de lookback padrão
+
+# =========================================================================
+# CONFIGURAÇÕES WEB (removido)
+# =========================================================================
+# web:
+#   console.templates: /etc/prometheus/consoles
+#   console.libraries: /etc/prometheus/console_libraries
+#   enable-lifecycle: true    # Permite reload via API
+#   enable-admin-api: true    # Habilita API admin
+#   page-title: "RAG System Monitoring"
+#   external-url: "http://localhost:9090"
+
+# =========================================================================
+# CONFIGURAÇÕES DE LOG (removido)
+# =========================================================================
+# log:
+#   level: info              # Nível de log (debug, info, warn, error)
+#   format: logfmt           # Formato (logfmt ou json) 

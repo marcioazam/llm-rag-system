@@ -1,7 +1,11 @@
-import ollama
+try:
+    import ollama  # type: ignore
+except ModuleNotFoundError:  # Ollama pode não estar instalado em ambientes de produção
+    ollama = None  # type: ignore
+    import logging
+    logging.warning("Ollama não encontrado; ModelRouter operará em modo degradado e usará apenas respostas vazias ou modelo externo.")
 from typing import Dict, List, Optional, Tuple, Set
 import re
-import logging
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -47,7 +51,10 @@ class ModelRouter:
 
     def _check_available_models(self) -> Set[str]:
         """Verifica quais modelos estão instalados no Ollama"""
-        available = set()
+        if ollama is None:
+            # Modo degradado: considerar apenas modelos genéricos como disponíveis
+            return {'general'}
+
         try:
             result = ollama.list()
             installed_models = [model['name'] for model in result['models']]
@@ -97,6 +104,10 @@ class ModelRouter:
                           system_prompt: Optional[str] = None,
                           temperature: float = 0.7) -> str:
         """Gera resposta usando o modelo especificado"""
+        if ollama is None:
+            logger.warning("Ollama não disponível; retornando resposta vazia.")
+            return ""
+
         if model_key not in self.available_models:
             logger.warning(f"Modelo {model_key} não disponível, usando fallback")
             model_key = 'general'

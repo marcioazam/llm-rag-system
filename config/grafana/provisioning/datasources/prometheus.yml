@@ -1,0 +1,64 @@
+# ============================================================================
+# DATASOURCE PROMETHEUS - GRAFANA
+# ============================================================================
+# Configuração automática do datasource Prometheus no Grafana
+# ============================================================================
+
+apiVersion: 1
+
+# Lista de datasources para provisionar
+datasources:
+  # ============================================================================
+  # PROMETHEUS - MÉTRICAS PRINCIPAIS
+  # ============================================================================
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
+      prometheusVersion: 2.48.0
+      cacheLevel: 'High'
+      disableMetricsLookup: false
+      customQueryParameters: ''
+      manageAlerts: true
+      alertmanagerUid: ''
+      exemplarTraceIdDestinations: []
+      # Configurações de timeout
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      defaultRegion: "default"
+      # Configurações de cache
+      incrementalQuerying: true
+      incrementalQueryOverlapWindow: "10m"
+    # Configurações seguras (se necessário autenticação)
+    # secureJsonData:
+    #   httpHeaderValue1: 'Bearer your_token_here'
+    # jsonData:
+    #   httpHeaderName1: 'Authorization'
+    uid: prometheus
+    
+  # ============================================================================
+  # PROMETHEUS - MÉTRICAS DE SISTEMA (FUTURO)
+  # ============================================================================
+  # - name: Prometheus-System
+  #   type: prometheus  
+  #   access: proxy
+  #   url: http://prometheus:9090/federate
+  #   isDefault: false
+  #   version: 1
+  #   editable: true
+  #   jsonData:
+  #     httpMethod: GET
+  #     prometheusType: Prometheus
+  #     timeInterval: "30s"
+  #   uid: prometheus-system
+
+deleteDatasources:
+  # Remove datasources antigos se necessário
+  # - name: OldPrometheus
+  #   orgId: 1 

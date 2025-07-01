@@ -23,7 +23,6 @@ from datetime import datetime, timedelta
 from src.retrieval.hybrid_retriever import HybridRetriever
 from src.models.api_model_router import APIModelRouter
 from src.vectordb.qdrant_store import QdrantVectorStore
-from src.cache.multi_layer_cache import MultiLayerCache
 from src.utils.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
@@ -89,7 +88,7 @@ class T5RetrievalEvaluator:
     
     def __init__(self, 
                  model_router=None,
-                 cache: Optional[MultiLayerCache] = None,
+                 cache: Optional[Any] = None,
                  config: Optional[Dict] = None):
         self.model_router = model_router
         self.cache = cache
@@ -733,15 +732,17 @@ class EnhancedCorrectiveRAG:
                  retriever: Optional[HybridRetriever] = None,
                  relevance_threshold: float = 0.75,
                  max_reformulation_attempts: int = 3,
-                 enable_decomposition: bool = True):
+                 enable_decomposition: bool = True,
+                 cache: Optional[Any] = None,
+                 model_router: Optional[APIModelRouter] = None):
         self.retriever = retriever or HybridRetriever()
-        self.model_router = APIModelRouter({})
+        self.model_router = model_router or APIModelRouter({})
         self.relevance_threshold = relevance_threshold
         self.max_reformulation_attempts = max_reformulation_attempts
         self.enable_decomposition = enable_decomposition
         
         # Componentes enhanced
-        self.t5_evaluator = T5RetrievalEvaluator(self.model_router)
+        self.t5_evaluator = T5RetrievalEvaluator(self.model_router, cache)
         self.query_decomposer = QueryDecomposer(self.model_router)
         
         # Métricas
@@ -1093,106 +1094,17 @@ class EnhancedCorrectiveRAG:
         return results
 
 
-# Função de factory para facilitar uso
 def create_enhanced_corrective_rag(config: Dict = None) -> EnhancedCorrectiveRAG:
-    """
-    Factory para criar Enhanced Corrective RAG com configurações.
+    """Factory para criar EnhancedCorrectiveRAG com configuração."""
+    config = config or {}
     
-    Args:
-        config: Configurações do sistema
-        
-    Returns:
-        Instância configurada do EnhancedCorrectiveRAG
-    """
-    if config is None:
-        config = {}
+    # A instância de cache agora é passada pela pipeline, não criada aqui.
+    # O retriever também é gerenciado pela pipeline.
     
-    # Configurações padrão
-    default_config = {
-        'relevance_threshold': 0.75,
-        'max_reformulation_attempts': 3,
-        'enable_decomposition': True,
-        'cache_evaluations': True,
-        'api_providers': ['openai', 'anthropic', 'huggingface']
-    }
-    
-    # Mesclar configurações
-    merged_config = {**default_config, **config}
-    
-    # Criar cache se especificado
-    cache = None
-    if merged_config.get('cache_evaluations', True):
-        cache_config = merged_config.get('cache')
-        if cache_config:
-            # Se cache_config é uma instância, usar diretamente
-            if hasattr(cache_config, 'get') and hasattr(cache_config, 'set'):
-                cache = cache_config
-            else:
-                # Se é configuração, criar nova instância
-                from src.cache.multi_layer_cache import create_multi_layer_cache
-                cache = create_multi_layer_cache(cache_config)
-        else:
-            # Configuração padrão do cache
-            from src.cache.multi_layer_cache import create_multi_layer_cache
-            default_cache_config = {
-                'enable_l1': True,
-                'enable_l2': True,
-                'enable_l3': True,
-                'l1_max_size': 1000,
-                'redis_host': os.getenv('REDIS_HOST', 'localhost'),
-                'redis_port': int(os.getenv('REDIS_PORT', '6379')),
-                'redis_db': int(os.getenv('REDIS_DB', '1')),
-                'redis_password': os.getenv('REDIS_PASSWORD'),
-                'sqlite_path': 'cache/enhanced_rag_evaluations.db',
-                'default_ttl': 3600
-            }
-            cache = create_multi_layer_cache(default_cache_config)
-    
-    # Criar modelo router se não fornecido
-    model_router = merged_config.get('model_router')
-    if model_router is None:
-        try:
-            from src.models.api_model_router import APIModelRouter
-            model_router = APIModelRouter()
-        except ImportError:
-            logger.warning("APIModelRouter não disponível, usando None")
-            model_router = None
-    
-    # Criar retriever se não fornecido
-    retriever = merged_config.get('retriever')
-    if retriever is None:
-        try:
-            from src.retrieval.hybrid_retriever import HybridRetriever
-            retriever = HybridRetriever()
-        except ImportError:
-            logger.warning("HybridRetriever não disponível, usando None")
-            retriever = None
-    
-    # Criar instância do Enhanced Corrective RAG
-    enhanced_rag = EnhancedCorrectiveRAG(
-        retriever=retriever,
-        relevance_threshold=merged_config['relevance_threshold'],
-        max_reformulation_attempts=merged_config['max_reformulation_attempts'],
-        enable_decomposition=merged_config['enable_decomposition']
+    return EnhancedCorrectiveRAG(
+        relevance_threshold=config.get("relevance_threshold", 0.75),
+        max_reformulation_attempts=config.get("max_reformulation_attempts", 3),
+        enable_decomposition=config.get("enable_decomposition", True),
+        cache=config.get("cache"),  # Recebe a instância de cache
+        model_router=config.get("model_router")
     )
-    
-    # Configurar T5 Evaluator com cache
-    if enhanced_rag.t5_evaluator:
-        enhanced_rag.t5_evaluator.cache = cache
-        enhanced_rag.t5_evaluator.model_router = model_router
-        
-        # Configurar providers da API
-        api_providers = merged_config.get('api_providers', ['openai'])
-        enhanced_rag.t5_evaluator.provider_chain = api_providers
-    
-    # Configurar Query Decomposer
-    if enhanced_rag.query_decomposer:
-        enhanced_rag.query_decomposer.model_router = model_router
-    
-    logger.info(f"✅ Enhanced Corrective RAG criado com:")
-    logger.info(f"   Threshold: {merged_config['relevance_threshold']}")
-    logger.info(f"   Decomposition: {merged_config['enable_decomposition']}")
-    logger.info(f"   Cache: {'habilitado' if cache else 'desabilitado'}")
-    logger.info(f"   API providers: {merged_config.get('api_providers', ['openai'])}")
-    
-    return enhanced_rag

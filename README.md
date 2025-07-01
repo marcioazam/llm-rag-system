@@ -155,19 +155,58 @@ llm-rag-system/
 - Docker & Docker Compose
 - Chaves API dos provedores LLM desejados
 
-### ⚡ **Instalação Rápida**
+### ⚡ **Inicialização Ultra-Rápida**
 
+#### **🖱️ Opção 1: Clique Duplo (Windows)**
 ```bash
 # 1. Clone o repositório
 git clone https://github.com/seu-usuario/llm-rag-system.git
 cd llm-rag-system
 
-# 2. Configure ambiente
+# 2. Execute o arquivo batch
+start_rag.bat
+```
+
+#### **🐧 Opção 2: Script Terminal (Linux/Mac)**
+```bash
+# 1. Clone o repositório
+git clone https://github.com/seu-usuario/llm-rag-system.git
+cd llm-rag-system
+
+# 2. Execute o script bash
+chmod +x start.sh
+./start.sh
+```
+
+#### **🐍 Opção 3: Script Python (Universal)**
+```bash
+# 1. Clone o repositório
+git clone https://github.com/seu-usuario/llm-rag-system.git
+cd llm-rag-system
+
+# 2. Execute script Python
+python scripts/start_rag_system.py
+```
+
+> **🎯 Todos os scripts automáticos fazem:**
+> - ✅ Verificar pré-requisitos (Docker, Python)
+> - ✅ Configurar arquivo .env automaticamente
+> - ✅ Iniciar todos os serviços Docker
+> - ✅ Validar funcionamento da API
+> - ✅ Mostrar links e comandos úteis
+> - ✅ Abrir documentação no browser
+
+### 🛠️ **Instalação Manual**
+
+```bash
+# 1. Configure ambiente
 cp config/env_example.txt .env
 # Edite .env com suas chaves API
 
-# 3. Execute com Docker
+# 2. Execute com Docker
 docker-compose up -d
+
+# 3. Aguarde inicialização (30-60 segundos)
 
 # 4. Acesse a API
 curl http://localhost:8000/docs

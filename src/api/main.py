@@ -17,6 +17,15 @@ from src.metadata.sqlite_store import ProjectValidationError
 
 app = FastAPI(title="RAG System API", version="2.0.0")
 
+# Expor métricas Prometheus
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator().instrument(app).expose(app)
+except ImportError:
+    import logging
+    logging.warning("prometheus-fastapi-instrumentator não instalado – métricas desativadas.")
+
 # Dependency
 
 # Models
@@ -685,23 +694,23 @@ async def health_check():
 async def query_stream(q: str, k: int = 5, project_id: Optional[str] = None):
     """Stream de resposta de query com filtro opcional por projeto"""
     try:
-        # Validar projeto se especificado
-        if project_id:
-    pipeline = get_pipeline()
-            if hasattr(pipeline, 'metadata_store'):
-                if not pipeline.metadata_store.project_exists(project_id):
-                    raise HTTPException(status_code=400, detail=f"Projeto '{project_id}' não existe")
+        pipeline = get_pipeline()
 
-    async def _generator():
+        # Validar projeto se especificado
+        if project_id and hasattr(pipeline, "metadata_store"):
+            if not pipeline.metadata_store.project_exists(project_id):
+                raise HTTPException(status_code=400, detail=f"Projeto '{project_id}' não existe")
+
+        async def _generator():
             try:
-                # TODO: Implementar streaming com filtros por projeto
-                result = get_pipeline().query(q, k=k)
+                # TODO: Implementar streaming real; por enquanto resposta única
+                result = pipeline.query(q, k=k)
                 yield f"data: {result}\n\n"
             except Exception as e:
                 yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
         return StreamingResponse(_generator(), media_type="text/plain")
-        
+
     except HTTPException:
         raise
     except Exception as e:

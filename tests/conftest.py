@@ -6,6 +6,7 @@ Versão corrigida com mocks centralizados e compatibilidade Windows
 import pytest
 import sys
 import os
+import pathlib
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from enum import Enum
@@ -15,10 +16,10 @@ import importlib.abc as _abc
 import importlib.machinery as _machinery
 from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _as_completed
 
-# Adicionar src ao path ANTES de qualquer importação
-project_root = Path(__file__).parent.parent
-src_path = project_root / "src"
-sys.path.insert(0, str(src_path))
+# Adicionar a raiz do projeto ao sys.path para garantir que 'src' seja encontrável
+# Isso resolve problemas de importação em ambientes de CI/CD e locais
+_project_root = pathlib.Path(__file__).parent.parent
+sys.path.insert(0, str(_project_root))
 
 # Mock preventivo para dependências pesadas
 sys.modules['sentence_transformers'] = MagicMock()
